@@ -1,5 +1,5 @@
 /* HR ERP SPA — set API to your GAS /exec URL */
-const API = 'https://script.google.com/macros/s/YOUR_ID/exec';
+const API = 'https://script.google.com/macros/s/AKfycbxAtDN_JRN3EywU0XUuSZNyWbFDGhpCvIwXSewOZmEjn4ZYKofPFhDear2KFMG0lVM/exec';
 const L = {
   en: {user:'Username',pass:'Password',login:'Sign in',search:'Search…',save:'Save',cancel:'Cancel',del:'Delete',saved:'Saved',queued:'Offline — queued',synced:'Synced',off:'Offline',on:'Online',admin:'Admin',users:'Users',audit:'Audit',live:'Live',invalid:'Invalid credentials',locked:'Locked, retry in (s): ',drop:'Drop file or tap to upload',empty:'No records',out:'Sign out',filter:'Filter'},
   ar: {user:'اسم المستخدم',pass:'كلمة المرور',login:'دخول',search:'بحث…',save:'حفظ',cancel:'إلغاء',del:'حذف',saved:'تم الحفظ',queued:'بدون إنترنت — في الانتظار',synced:'تمت المزامنة',off:'غير متصل',on:'متصل',admin:'الإدارة',users:'المستخدمون',audit:'السجل',live:'المتصلون',invalid:'بيانات غير صحيحة',locked:'محظور، أعد المحاولة بعد (ث): ',drop:'اسحب الملف أو اضغط للرفع',empty:'لا توجد سجلات',out:'خروج',filter:'تصفية'}
