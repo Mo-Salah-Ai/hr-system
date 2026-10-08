@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HR ERP</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--tx:#0f172a;--mu:#64748b;--bd:#e2e8f0;--ac:#6366f1}
+.dark{--bg:#0f172a;--card:#1e293b;--tx:#e2e8f0;--mu:#94a3b8;--bd:#334155;--ac:#818cf8}
+body{background:var(--bg);color:var(--tx);padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:1rem}
+.inp{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:.75rem;padding:.65rem .8rem;color:var(--tx);outline:0}
+.inp:focus{border-color:var(--ac)}
+.btn{background:var(--ac);color:#fff;border-radius:.75rem;padding:.6rem 1rem;font-weight:600;transition:transform .1s}
+.btn:active{transform:scale(.95)}
+.blur{backdrop-filter:blur(10px);background:rgba(15,23,42,.55)}
+.sheet{transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.pop{animation:pop .25s ease}@keyframes pop{from{opacity:0;transform:translateY(8px)}}
+.chip{padding:.4rem .9rem;border-radius:9999px;border:1px solid var(--bd);white-space:nowrap}
+.chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+</style>
+</head>
+<body class="min-h-screen">
+<div id="app" class="max-w-xl mx-auto"></div>
+<div id="toasts" class="fixed top-3 inset-x-0 z-[70] flex flex-col items-center gap-2 pointer-events-none"></div>
+<script src="app.js"></script>
+</body>
+</html>
