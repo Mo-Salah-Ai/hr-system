@@ -77,7 +77,7 @@ async function boot() {
   S.tabs = sc.tabs; S.tab = S.tabs[0]; renderShell(); loadRows(); syncQueue();
 }
 function renderShell() {
-  html(app, `<header class="sticky top-0 z-30 blur px-4 py-3 flex items-center gap-3 text-white" style="background:#0f172acc">
+  html(app, `<header class="sticky top-0 z-30 glass px-4 py-3 flex items-center gap-3 text-white" style="background:#0f172acc">
       <b class="flex-1">HR ERP</b><span id="net"></span>
       <button id="lg">🌐</button><button id="th">◐</button>
       ${S.role === 'admin' ? `<button id="ad">⚙️</button>` : ''}<button id="lo">⎋</button></header>
@@ -91,7 +91,7 @@ function renderShell() {
   $('#q').oninput = e => { S.q = e.target.value; renderFeed(); }; // instant typeahead
   $('#lg').onclick = () => (S.lang = S.lang === 'ar' ? 'en' : 'ar', applyLook(), renderShell(), renderFeed());
   $('#th').onclick = () => (S.dark = !S.dark, applyLook());
-  $('#lo').onclick = logout; $('#fab').onclick = () => openForm({});
+  $('#lo').onclick = logout; $('#fab').onclick = () => S.tab ? openForm({}) : toast('Add a row in _Registry first', true);
   if ($('#ad')) $('#ad').onclick = openAdmin;
 }
 async function loadRows() {
@@ -121,7 +121,7 @@ function renderFeed() {
 /* ---------- bottom sheet form ---------- */
 function sheet(inner) {
   const w = document.createElement('div');
-  w.className = 'fixed inset-0 z-50 blur flex items-end justify-center';
+  w.className = 'fixed inset-0 z-50 glass flex items-end justify-center';
   w.innerHTML = `<div class="sheet card w-full max-w-xl max-h-[88vh] overflow-y-auto p-5 rounded-b-none translate-y-full">${inner}</div>`;
   document.body.append(w);
   const s = w.firstChild; requestAnimationFrame(() => s.classList.remove('translate-y-full'));
