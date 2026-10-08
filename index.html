@@ -1,29 +1,131 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr" class="dark">
+<html lang="en" dir="ltr" class="">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>HR ERP</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<title>Nexus HR · Operations ERP</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: { extend: {
+    colors: { navy:{950:'#070d1f',900:'#0f172a',800:'#16213e',700:'#1e2a4a'},
+              neon:'#22d3ee', phosphor:'#a3e635' },
+    fontFamily: { sans:['Inter','Cairo','system-ui','sans-serif'] },
+    boxShadow: { glow:'0 0 24px rgba(34,211,238,.25)', card:'0 8px 32px rgba(2,6,23,.35)' }
+  }}
+};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <style>
-:root{--bg:#f1f5f9;--card:#fff;--tx:#0f172a;--mu:#64748b;--bd:#e2e8f0;--ac:#6366f1}
-.dark{--bg:#0f172a;--card:#1e293b;--tx:#e2e8f0;--mu:#94a3b8;--bd:#334155;--ac:#818cf8}
-body{background:var(--bg);color:var(--tx);padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:1rem}
-.inp{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:.75rem;padding:.65rem .8rem;color:var(--tx);outline:0}
-.inp:focus{border-color:var(--ac)}
-.btn{background:var(--ac);color:#fff;border-radius:.75rem;padding:.6rem 1rem;font-weight:600;transition:transform .1s}
-.btn:active{transform:scale(.95)}
-.glass{backdrop-filter:blur(10px);background:rgba(15,23,42,.55)}
-.sheet{transition:transform .3s cubic-bezier(.2,.8,.2,1)}
-.pop{animation:pop .25s ease}@keyframes pop{from{opacity:0;transform:translateY(8px)}}
-.chip{padding:.4rem .9rem;border-radius:9999px;border:1px solid var(--bd);white-space:nowrap}
-.chip.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+  :root{ --glass: rgba(255,255,255,.06); --glass-brd: rgba(255,255,255,.10); }
+  html:not(.dark){ --glass: rgba(15,23,42,.045); --glass-brd: rgba(15,23,42,.10); }
+  *{ -webkit-tap-highlight-color: transparent; }
+  body{ font-family:'Inter','Cairo',system-ui,sans-serif; overscroll-behavior-y:none; }
+  .glass{ background:var(--glass); border:1px solid var(--glass-brd); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); }
+  .card-lift{ transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s; }
+  .card-lift:active{ transform:scale(.97); }
+  /* bottom sheet */
+  #sheet{ transform:translateY(105%); transition:transform .32s cubic-bezier(.32,.72,.24,1); }
+  #sheet.open{ transform:translateY(0); }
+  #sheetBackdrop{ opacity:0; pointer-events:none; transition:opacity .28s; }
+  #sheetBackdrop.open{ opacity:1; pointer-events:auto; }
+  /* modal */
+  #modal{ opacity:0; pointer-events:none; transition:opacity .25s; }
+  #modal.open{ opacity:1; pointer-events:auto; }
+  #modalBox{ transform:scale(.92) translateY(12px); transition:transform .28s cubic-bezier(.34,1.4,.64,1); }
+  #modal.open #modalBox{ transform:scale(1) translateY(0); }
+  /* FAB */
+  #fab{ transition:transform .2s cubic-bezier(.34,1.56,.64,1); }
+  #fab:active{ transform:scale(.88) rotate(90deg); }
+  /* sync pulse */
+  @keyframes pulse-ring{ 0%{box-shadow:0 0 0 0 rgba(163,230,53,.5)} 100%{box-shadow:0 0 0 8px rgba(163,230,53,0)} }
+  .sync-ok{ animation:pulse-ring 1.6s ease-out infinite; }
+  /* toast slide */
+  @keyframes toastIn{ from{opacity:0; transform:translateY(16px) scale(.95)} to{opacity:1; transform:none} }
+  .toast{ animation:toastIn .25s cubic-bezier(.34,1.4,.64,1); }
+  /* chat bubble style for record cards */
+  .bubble{ border-radius:1.25rem; }
+  html[dir=rtl] .bubble-tail{ border-radius:1.25rem 1.25rem .25rem 1.25rem; }
+  html[dir=ltr] .bubble-tail{ border-radius:1.25rem 1.25rem 1.25rem .25rem; }
+  /* skeleton */
+  @keyframes shimmer{ from{background-position:-200px 0} to{background-position:200px 0} }
+  .skel{ background:linear-gradient(90deg,var(--glass) 25%,rgba(128,128,128,.18) 50%,var(--glass) 75%);
+         background-size:400px 100%; animation:shimmer 1.2s infinite; }
+  /* drag zone */
+  #dropzone.drag{ border-color:#22d3ee; background:rgba(34,211,238,.08); transform:scale(1.01); }
+  .hidebar::-webkit-scrollbar{ display:none } .hidebar{ scrollbar-width:none }
+  input,select,textarea{ outline:none }
+  .fade-in{ animation:toastIn .3s ease both }
 </style>
+<base target="_blank">
 </head>
-<body class="min-h-screen">
-<div id="app" class="max-w-xl mx-auto"></div>
-<div id="toasts" class="fixed top-3 inset-x-0 z-[70] flex flex-col items-center gap-2 pointer-events-none"></div>
+<body class="bg-slate-100 dark:bg-navy-900 text-slate-800 dark:text-slate-100 min-h-screen pb-24 transition-colors duration-300">
+
+<!-- ===== ambient glow ===== -->
+<div class="fixed inset-0 pointer-events-none z-0">
+  <div class="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
+  <div class="absolute top-1/3 -right-32 w-96 h-96 rounded-full bg-lime-400/10 blur-3xl"></div>
+</div>
+
+<!-- ===== header ===== -->
+<header class="sticky top-0 z-40 glass !border-x-0 !border-t-0">
+  <div class="max-w-2xl mx-auto flex items-center gap-3 px-4 py-3">
+    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-glow">
+      <span class="text-white font-extrabold text-sm">N</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <h1 id="appTitle" class="font-bold text-sm truncate">Nexus HR</h1>
+      <p id="userGreet" class="text-[11px] opacity-60 truncate"></p>
+    </div>
+    <!-- sync indicator -->
+    <button id="syncBadge" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full glass text-[11px] font-semibold">
+      <span id="syncDot" class="w-2 h-2 rounded-full bg-emerald-400 sync-ok"></span>
+      <span id="syncText">Synced</span>
+    </button>
+    <!-- lang toggle -->
+    <button id="langBtn" class="w-9 h-9 rounded-full glass flex items-center justify-center text-sm font-bold">ع</button>
+    <!-- theme toggle -->
+    <button id="themeBtn" class="w-9 h-9 rounded-full glass flex items-center justify-center">
+      <span id="themeIcon">🌙</span>
+    </button>
+    <!-- admin -->
+    <button id="adminBtn" class="w-9 h-9 rounded-full glass items-center justify-center hidden">🛡️</button>
+    <button id="logoutBtn" class="w-9 h-9 rounded-full glass flex items-center justify-center">⏻</button>
+  </div>
+</header>
+
+<main id="main" class="relative z-10 max-w-2xl mx-auto px-4 pt-4"></main>
+
+<!-- ===== bottom nav ===== -->
+<nav id="bottomNav" class="fixed bottom-0 inset-x-0 z-40 glass !border-x-0 !border-b-0 hidden">
+  <div id="navTabs" class="max-w-2xl mx-auto flex overflow-x-auto hidebar px-2 py-2 gap-1"></div>
+</nav>
+
+<!-- ===== FAB ===== -->
+<button id="fab" class="fixed z-40 bottom-24 end-5 w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-white text-2xl font-light shadow-glow hidden items-center justify-center">＋</button>
+
+<!-- ===== bottom sheet (chat-like form) ===== -->
+<div id="sheetBackdrop" class="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm"></div>
+<div id="sheet" class="fixed bottom-0 inset-x-0 z-50 max-w-2xl mx-auto glass !rounded-b-none rounded-t-3xl max-h-[88vh] flex flex-col">
+  <div class="pt-3 pb-2 flex justify-center"><div class="w-10 h-1 rounded-full bg-white/20"></div></div>
+  <div class="px-5 pb-2 flex items-center justify-between">
+    <h2 id="sheetTitle" class="font-bold text-lg"></h2>
+    <button id="sheetClose" class="w-8 h-8 rounded-full glass">✕</button>
+  </div>
+  <div id="sheetBody" class="overflow-y-auto hidebar px-5 pb-28 pt-2 space-y-4"></div>
+</div>
+
+<!-- ===== generic modal ===== -->
+<div id="modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-4">
+  <div id="modalBox" class="glass rounded-3xl w-full max-w-md max-h-[85vh] overflow-y-auto hidebar p-5"></div>
+</div>
+
+<!-- ===== toasts ===== -->
+<div id="toasts" class="fixed top-16 inset-x-0 z-[60] flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
+
 <script src="app.js"></script>
 </body>
 </html>
