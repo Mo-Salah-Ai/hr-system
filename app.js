@@ -4,7 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxwcwPeU0Yyov_7ijEEuzOwc3QpFf2R5vd4O7-bb51yheahTp3P88kihYhgjpBDOCK6bA/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbymqeOg8gND5zCd44PGj0iGch9HlSyw2sjXJXpFS0ihLrMlQI5ACcmnz0AxpGHMOnbfSQ/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
