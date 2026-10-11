@@ -4,7 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbyV00quYAm2TL9vcZyTxDKTyV4NZUuLWGrXkgcbV8_5FrQZu52MDuWeafBrK4kYvlg_Hg/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbylc26n772u2u3kJRrdsh_c-r0WaN6ny-Q9WdDArys9ZOgvul_Wgf5LRTpDdgxfSpnslQ/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -144,8 +144,6 @@ function calcVal(expr, data, cols) {
       if (typeof v === 'number') return v; if (typeof v === 'boolean') return v ? 1 : 0; if (Array.isArray(v)) return v.join(', ');
       const str = String(v), d = DRE.exec(str);
       if (d) return { d: Date.UTC(+d[1], +d[2] - 1, +d[3], +(d[4] || 0), +(d[5] || 0)) / DAY };
-      const e = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/.exec(str.trim());
-      if (e && +e[2] >= 1 && +e[2] <= 12 && +e[1] >= 1 && new Date(Date.UTC(+e[3], +e[2] - 1, +e[1])).getUTCMonth() === +e[2] - 1) return { d: Date.UTC(+e[3], +e[2] - 1, +e[1], +(e[4] || 0), +(e[5] || 0)) / DAY };
       return str.trim() !== '' && !isNaN(Number(str)) ? Number(str) : str;
     };
     const colIdx = k => { const m = /^([A-Za-z]{1,2})\d*$/.exec(k); if (!m || !cols) return -1; let n = 0; m[1].toUpperCase().split('').forEach(ch => { n = n * 26 + ch.charCodeAt(0) - 64; }); return n - 1; };
@@ -966,14 +964,8 @@ function openTabBuilder(tabName) {
 
   const prevCols = i => rows.slice(0, i).filter(r => r.label.trim() && r.type !== 'file').map(r => r.label.trim());
   const fillCols = sel => { const cur = sel.value, i = +sel.closest('[data-i]').dataset.i; sel.innerHTML = `<option value="">${esc(sel.dataset.ph || '—')}</option>${sel.dataset.today ? `<option value="__today">📅 ${esc(L('Today', 'اليوم'))}</option>` : ''}${prevCols(i).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}`; sel.value = cur; };
-  const sample = mode => { const d = {}, ck = rows.filter(r => r.label.trim()).map(r => r.label.trim()); rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; const txt = r.type === 'text' || r.type === 'longtext' || r.type === 'phone' || r.type === 'email' || r.type === 'select'; const dt = new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10); d[key] = r.type === 'date' ? dt : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d, ck) : r.type === 'checkbox' ? 1 : txt && mode === 'date' ? dt : txt && mode === 'num' ? 10 + k : 'abc'; }); return d; };
-  const prevCalc = i => {
-    const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; }
-    const ck = rows.filter(x => x.label.trim()).map(x => x.label.trim()); let v = '', used = '';
-    for (const mode of ['', 'date', 'num']) { v = calcVal(r.calc, sample(mode), ck); if (v !== '') { used = mode; break; } }
-    el.style.color = v === '' ? 'var(--err)' : 'var(--ok)';
-    el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v + (used ? L('  (works if the text columns hold ' + (used === 'date' ? 'dates' : 'numbers') + ')', '  (شغالة لو أعمدة النص فيها ' + (used === 'date' ? 'تواريخ' : 'أرقام') + ')') : '');
-  };
+  const sample = () => { const d = {}, ck = rows.filter(r => r.label.trim()).map(r => r.label.trim()); rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; d[key] = r.type === 'date' ? new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10) : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d, ck) : r.type === 'checkbox' ? 1 : 'abc'; }); return d; };
+  const prevCalc = i => { const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; } const sm = sample(), v = calcVal(r.calc, sm, rows.filter(x => x.label.trim()).map(x => x.label.trim())); el.style.color = v === '' ? 'var(--err)' : 'var(--ok)'; el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v; };
   const ins = (inp, txt, back = 0) => { const a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a; inp.value = inp.value.slice(0, a) + txt + inp.value.slice(z); const pos = a + txt.length - back; inp.focus(); inp.setSelectionRange(pos, pos); inp.dispatchEvent(new Event('input', { bubbles: true })); };
   const calcBox = (r, i) => `<div style="margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--line,#475569)">
       <input class="inp" data-p="calc" dir="ltr" placeholder="=Qty*Price    |    =D2-E2    |    =DATEDIF(Start, End, &quot;d&quot;)    |    =[Total Fee]*2" value="${esc(r.calc || '')}">
