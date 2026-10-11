@@ -46,7 +46,7 @@ const I18N = {
     tabCreated: 'Tab created — it is live for everyone', userSaved: 'User saved', pw: 'Password (min 8 chars)', pwKeep: 'Leave empty to keep current', status: 'Status', switchedChat: 'Chat entry',
     permsChanged: 'Your permissions changed — reloading', saveFail: 'Could not save', confirmDel: 'Delete this record?', openFile: 'Open', fileOffline: 'File is stored on this device until you are online', mic: 'Voice input',
     syncNow: 'Sync now', syncStatus: 'Sync status', syncVerified: (n, k) => `Verified: ${n} record(s) in ${k} page(s) match the server`, lastSyncAt: x => `Last successful sync: ${x}`,
-    nothingPending: 'Nothing is waiting to sync', discardConfirm: 'Discard this unsynced change?', syncFailed: 'Sync failed'
+    nothingPending: 'Nothing is waiting to sync', discardConfirm: 'Discard this unsynced change?', syncFailed: 'Sync failed', dashboard: 'Dashboard', customize: 'Customize', doneEdit: 'Done', addWidget: 'Add widget', editWidget: 'Edit widget', dashHint: 'Your personal dashboard — tap any box or chart to drill in', emptyDash: 'Your dashboard is empty', resetDash: 'Reset to default', resetConfirm: 'Reset your dashboard to the default layout?', reset: 'Reset', wDelConfirm: 'Remove this widget?', wKpi: 'Number', wBar: 'Columns', wHbar: 'Bars', wDonut: 'Donut', wLine: 'Trend', wList: 'Latest', wTitle: 'Title (optional)', source: 'Data source', aggregate: 'Calculation', aggCount: 'Count', aggSum: 'Sum', aggAvg: 'Average', aggMin: 'Minimum', aggMax: 'Maximum', valueField: 'Number field', groupBy: 'Group by', dateBy: 'Date field', byUpdated: 'Last modified', filterBy: 'Filter by', filterVal: 'Value', none: 'None', range: 'Period', rAll: 'All time', r7: 'Last 7 days', r30: 'Last 30 days', r90: 'Last 90 days', r365: 'Last year', gran: 'Interval', gMonth: 'Monthly', gDay: 'Daily', size: 'Size', sSmall: 'Small', sMed: 'Medium', sLarge: 'Full width', color: 'Color', preview: 'Preview', records: 'Records', latest: 'Latest records', wUnavail: 'This data source is not available to you', wNeedGroup: 'Pick a field to group by', noWidgetData: 'No data yet', other: 'Other', moveEarlier: 'Move earlier', moveLater: 'Move later'
   },
   ar: {
     appName: 'نظام العمليات', tagline: 'منصة التوظيف والاستقدام', signIn: 'تسجيل الدخول', username: 'اسم المستخدم', password: 'كلمة المرور', login: 'دخول',
@@ -68,14 +68,14 @@ const I18N = {
     tabCreated: 'تم إنشاء الصفحة — أصبحت متاحة للجميع', userSaved: 'تم حفظ المستخدم', pw: 'كلمة المرور (٨ أحرف على الأقل)', pwKeep: 'اتركها فارغة للإبقاء على الحالية', status: 'الحالة', switchedChat: 'إدخال بالمحادثة',
     permsChanged: 'تغيّرت صلاحياتك — جارٍ التحديث', saveFail: 'تعذّر الحفظ', confirmDel: 'حذف هذا السجل؟', openFile: 'فتح', fileOffline: 'الملف محفوظ على جهازك حتى تتصل بالإنترنت', mic: 'إدخال صوتي',
     syncNow: 'مزامنة الآن', syncStatus: 'حالة المزامنة', syncVerified: (n, k) => `تم التحقق: ${n} سجل في ${k} صفحة مطابق للسيرفر`, lastSyncAt: x => `آخر مزامنة ناجحة: ${x}`,
-    nothingPending: 'لا يوجد شيء في انتظار المزامنة', discardConfirm: 'تجاهل هذا التعديل غير المتزامن؟', syncFailed: 'فشلت المزامنة'
+    nothingPending: 'لا يوجد شيء في انتظار المزامنة', discardConfirm: 'تجاهل هذا التعديل غير المتزامن؟', syncFailed: 'فشلت المزامنة', dashboard: 'لوحتي', customize: 'تخصيص', doneEdit: 'تم', addWidget: 'إضافة عنصر', editWidget: 'تعديل العنصر', dashHint: 'لوحتك الشخصية — اضغط على أي صندوق أو شارت لعرض التفاصيل', emptyDash: 'لوحتك فارغة', resetDash: 'استرجاع الافتراضي', resetConfirm: 'استرجاع اللوحة للشكل الافتراضي؟', reset: 'استرجاع', wDelConfirm: 'حذف هذا العنصر؟', wKpi: 'رقم', wBar: 'أعمدة', wHbar: 'أشرطة', wDonut: 'دائري', wLine: 'اتجاه', wList: 'الأحدث', wTitle: 'العنوان (اختياري)', source: 'مصدر البيانات', aggregate: 'العملية الحسابية', aggCount: 'عدد', aggSum: 'مجموع', aggAvg: 'متوسط', aggMin: 'أقل قيمة', aggMax: 'أعلى قيمة', valueField: 'الحقل الرقمي', groupBy: 'التجميع حسب', dateBy: 'حقل التاريخ', byUpdated: 'آخر تعديل', filterBy: 'تصفية حسب', filterVal: 'القيمة', none: 'بدون', range: 'الفترة', rAll: 'كل الوقت', r7: 'آخر ٧ أيام', r30: 'آخر ٣٠ يوم', r90: 'آخر ٩٠ يوم', r365: 'آخر سنة', gran: 'الفاصل الزمني', gMonth: 'شهري', gDay: 'يومي', size: 'الحجم', sSmall: 'صغير', sMed: 'متوسط', sLarge: 'عرض كامل', color: 'اللون', preview: 'معاينة', records: 'سجلات', latest: 'أحدث السجلات', wUnavail: 'مصدر البيانات هذا غير متاح لك', wNeedGroup: 'اختر حقلاً للتجميع', noWidgetData: 'لا توجد بيانات بعد', other: 'أخرى', moveEarlier: 'تقديم', moveLater: 'تأخير'
   }
 };
 const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', date: 'Date', datetime: 'Date & time', select: 'Dropdown', multiselect: 'Multi-select', checkbox: 'Checkbox', phone: 'Phone', email: 'Email', file: 'File upload', calc: 'Calculated' },
   ar: { text: 'نص', longtext: 'نص طويل', number: 'رقم', date: 'تاريخ', datetime: 'تاريخ ووقت', select: 'قائمة', multiselect: 'اختيار متعدد', checkbox: 'مربع اختيار', phone: 'هاتف', email: 'بريد', file: 'رفع ملف', calc: 'محسوب' } };
-const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create', 'tab_update'];
+const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create'];
 
-const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
+const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'dash', tab: null, admin: 'overview' },
   online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null };
 const t = (k, ...a) => { const v = (I18N[S.lang] || I18N.en)[k] ?? I18N.en[k] ?? k; return typeof v === 'function' ? v(...a) : v; };
 const fl = f => (S.lang === 'ar' && f.ar) ? f.ar : f.label;
@@ -93,7 +93,9 @@ const ICONS = {
   grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', check: '<path d="M20 6 9 17l-5-5"/>', upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
   spin: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>'
+  sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>',
+  up: '<path d="m18 15-6-6-6 6"/>', down: '<path d="m6 9 6 6 6-6"/>', chart: '<path d="M3 3v18h18M7 15l4-4 3 3 5-6"/>',
+  sliders: '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'
 };
 const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 
@@ -118,123 +120,11 @@ function cond(expr, data) {
   const hit = (Array.isArray(v) ? v.map(String) : [String(v ?? '')]).some(x => want.includes(x));
   return m[2] === '!=' ? !hit : hit;
 }
-/* Safe formula engine (same code in app.js and Code.gs). Supports + - * / % ( ), comparisons, dates and functions:
-   DAYS(end,start) MONTHS(end,start) YEARS(end,start) ADDDAYS(date,n) ADDMONTHS(date,n) TODAY()
-   ROUND(x,n) ABS MIN MAX SUM AVG IF(cond,a,b) AND OR NOT CONCAT */
-function calcVal(expr, data, cols) {
-  const DAY = 86400000, DRE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
+function calcVal(expr, data) {
   try {
-    const s = String(expr == null ? '' : expr).replace(/^\s*=/, ''), T = []; let i = 0, m;
-    while (i < s.length) {
-      const c = s[i], rest = s.slice(i);
-      if (/\s/.test(c)) { i++; continue; }
-      if ((m = /^(\d+\.?\d*|\.\d+)/.exec(rest))) { T.push({ t: 'n', v: parseFloat(m[1]) }); i += m[1].length; }
-      else if (c === '{') { const j = s.indexOf('}', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
-      else if (c === '[') { const j = s.indexOf(']', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
-      else if (c === '"' || c === "'") { const j = s.indexOf(c, i + 1); if (j < 0) return ''; T.push({ t: 's', v: s.slice(i + 1, j) }); i = j + 1; }
-      else if ((m = /^[A-Za-z_]\w*/.exec(rest))) { T.push({ t: 'i', v: m[0] }); i += m[0].length; }
-      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%^&:(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
-      else return '';
-    }
-    let p = 0;
-    const isD = v => v !== null && typeof v === 'object' && !Array.isArray(v);
-    const num = v => Array.isArray(v) ? NaN : v == null ? 0 : isD(v) ? v.d : typeof v === 'number' ? v : (v === '' || isNaN(Number(v)) ? NaN : Number(v));
-    const ref = k => {
-      const v = data[k]; if (v === undefined || v === null || v === '') return null;
-      if (typeof v === 'number') return v; if (typeof v === 'boolean') return v ? 1 : 0; if (Array.isArray(v)) return v.join(', ');
-      const str = String(v), d = DRE.exec(str);
-      if (d) return { d: Date.UTC(+d[1], +d[2] - 1, +d[3], +(d[4] || 0), +(d[5] || 0)) / DAY };
-      const e = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/.exec(str.trim());
-      if (e && +e[2] >= 1 && +e[2] <= 12 && +e[1] >= 1 && new Date(Date.UTC(+e[3], +e[2] - 1, +e[1])).getUTCMonth() === +e[2] - 1) return { d: Date.UTC(+e[3], +e[2] - 1, +e[1], +(e[4] || 0), +(e[5] || 0)) / DAY };
-      return str.trim() !== '' && !isNaN(Number(str)) ? Number(str) : str;
-    };
-    const colIdx = k => { const m = /^([A-Za-z]{1,2})\d*$/.exec(k); if (!m || !cols) return -1; let n = 0; m[1].toUpperCase().split('').forEach(ch => { n = n * 26 + ch.charCodeAt(0) - 64; }); return n - 1; };
-    const nameRef = k => { if (Object.prototype.hasOwnProperty.call(data, k)) return ref(k); const i = colIdx(k); return i >= 0 && cols[i] !== undefined ? ref(cols[i]) : ref(k); };
-    const ymd = v => new Date(Math.round(v.d * DAY));
-    const addM = (v, n) => { const dt = ymd(v), y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + Math.trunc(n), last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate(); return { d: Date.UTC(y, mo, Math.min(dt.getUTCDate(), last), dt.getUTCHours(), dt.getUTCMinutes()) / DAY }; };
-    const months = (a, b) => { const x = ymd(a), y = ymd(b); let n = (x.getUTCFullYear() - y.getUTCFullYear()) * 12 + x.getUTCMonth() - y.getUTCMonth(); if (n > 0 && x.getUTCDate() < y.getUTCDate()) n--; if (n < 0 && x.getUTCDate() > y.getUTCDate()) n++; return n; };
-    const must = v => { if (!isD(v)) throw 0; return v; };
-    const nn = v => { const x = num(v); if (isNaN(x)) throw 0; return x; };
-    const arith = (op, a, b) => {
-      const ad = isD(a), bd = isD(b);
-      if ((ad || bd) && (a == null || b == null)) return null;
-      if (op === '+') { if (ad && bd) throw 0; if (ad) return { d: a.d + nn(b) }; if (bd) return { d: b.d + nn(a) }; return nn(a) + nn(b); }
-      if (op === '-') { if (ad && bd) return a.d - b.d; if (ad) return { d: a.d - nn(b) }; if (bd) throw 0; return nn(a) - nn(b); }
-      if (ad || bd) throw 0;
-      const x = nn(a), y = nn(b); return op === '*' ? x * y : op === '/' ? x / y : x % y;
-    };
-    const cmp = (op, a, b) => {
-      let x = isD(a) ? a.d : a, y = isD(b) ? b.d : b;
-      if (typeof x === 'string' || typeof y === 'string') { x = String(x == null ? '' : x).toLowerCase(); y = String(y == null ? '' : y).toLowerCase(); } else { x = x == null ? 0 : x; y = y == null ? 0 : y; }
-      return (op === '<' ? x < y : op === '>' ? x > y : op === '<=' ? x <= y : op === '>=' ? x >= y : (op === '=' || op === '==') ? x === y : x !== y) ? 1 : 0;
-    };
-    const truthy = v => v != null && v !== 0 && v !== '' && v !== false;
-    const nums = a => a.filter(v => v != null).map(nn);
-    const FN = {
-      TODAY: () => ({ d: Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY) }),
-      DAYS: a => a[0] == null || a[1] == null ? null : must(a[0]).d - must(a[1]).d,
-      MONTHS: a => a[0] == null || a[1] == null ? null : months(must(a[0]), must(a[1])),
-      YEARS: a => { if (a[0] == null || a[1] == null) return null; const n = months(must(a[0]), must(a[1])); return Math.trunc(n / 12); },
-      ADDDAYS: a => a[0] == null ? null : { d: must(a[0]).d + nn(a[1]) },
-      ADDMONTHS: a => a[0] == null ? null : addM(must(a[0]), nn(a[1])),
-      ROUND: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.round(nn(a[0]) * k) / k; },
-      ABS: a => Math.abs(nn(a[0])),
-      MIN: a => { const x = nums(a); return x.length ? Math.min.apply(null, x) : null; },
-      MAX: a => { const x = nums(a); return x.length ? Math.max.apply(null, x) : null; },
-      SUM: a => nums(a).reduce((s, v) => s + v, 0),
-      AVG: a => { const x = nums(a); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; },
-      IF: a => truthy(a[0]) ? (a[1] === undefined ? null : a[1]) : (a[2] === undefined ? null : a[2]),
-      AND: a => a.every(truthy) ? 1 : 0, OR: a => a.some(truthy) ? 1 : 0, NOT: a => truthy(a[0]) ? 0 : 1,
-      NOW: () => FN.TODAY(),
-      DATEDIF: a => { if (a[0] == null || a[1] == null) return null; const u = String(a[2] == null ? 'd' : a[2]).toLowerCase(); if (u === 'd') return must(a[1]).d - must(a[0]).d; const n = months(must(a[1]), must(a[0])); return u === 'm' ? n : u === 'y' ? Math.trunc(n / 12) : (() => { throw 0; })(); },
-      EDATE: a => a[0] == null ? null : addM(must(a[0]), nn(a[1])),
-      EOMONTH: a => { if (a[0] == null) return null; const dt = ymd(must(a[0])); return { d: Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1 + Math.trunc(nn(a[1])), 0) / DAY }; },
-      YEAR: a => a[0] == null ? null : ymd(must(a[0])).getUTCFullYear(),
-      MONTH: a => a[0] == null ? null : ymd(must(a[0])).getUTCMonth() + 1,
-      DAY: a => a[0] == null ? null : ymd(must(a[0])).getUTCDate(),
-      INT: a => Math.floor(nn(a[0])), MOD: a => nn(a[0]) % nn(a[1]), POWER: a => Math.pow(nn(a[0]), nn(a[1])), SQRT: a => Math.sqrt(nn(a[0])),
-      ROUNDUP: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.ceil(nn(a[0]) * k) / k; },
-      ROUNDDOWN: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.trunc(nn(a[0]) * k) / k; },
-      IFERROR: a => typeof a[0] === 'number' && !isFinite(a[0]) ? (a[1] === undefined ? null : a[1]) : a[0],
-      ISBLANK: a => a[0] == null || a[0] === '' ? 1 : 0,
-      LEN: a => FN.CONCAT([a[0]]).length, UPPER: a => FN.CONCAT([a[0]]).toUpperCase(), LOWER: a => FN.CONCAT([a[0]]).toLowerCase(), TRIM: a => FN.CONCAT([a[0]]).trim(),
-      LEFT: a => FN.CONCAT([a[0]]).slice(0, a.length > 1 ? nn(a[1]) : 1), RIGHT: a => { const s = FN.CONCAT([a[0]]), n = a.length > 1 ? nn(a[1]) : 1; return n <= 0 ? '' : s.slice(-n); },
-      CONCAT: a => a.map(v => isD(v) ? toStr(v) : v == null ? '' : String(v)).join('')
-    };
-    const toStr = v => { const dt = ymd(v), z = n => (n < 10 ? '0' : '') + n, base = dt.getUTCFullYear() + '-' + z(dt.getUTCMonth() + 1) + '-' + z(dt.getUTCDate()); return Number.isInteger(v.d) ? base : base + 'T' + z(dt.getUTCHours()) + ':' + z(dt.getUTCMinutes()); };
-    const peek = v => T[p] && T[p].t === 'o' && T[p].v === v;
-    const expr0 = () => {
-      let a = cat();
-      while (T[p] && T[p].t === 'o' && ['<', '>', '<=', '>=', '=', '==', '!=', '<>'].indexOf(T[p].v) >= 0) { const op = T[p++].v; a = cmp(op, a, cat()); }
-      return a;
-    };
-    const cat = () => { let a = add(); while (peek('&')) { p++; const b = add(); a = FN.CONCAT([a, b]); } return a; };
-    const add = () => { let a = mul(); while (peek('+') || peek('-')) { const op = T[p++].v; a = arith(op, a, mul()); } return a; };
-    const mul = () => { let a = pw(); while (peek('*') || peek('/') || peek('%')) { const op = T[p++].v; a = arith(op, a, pw()); } return a; };
-    const pw = () => { let a = un(); while (peek('^')) { p++; const b = un(); a = a == null || b == null ? null : Math.pow(nn(a), nn(b)); } return a; };
-    const un = () => { if (peek('-')) { p++; const v = un(); return v == null ? null : -nn(v); } if (peek('+')) { p++; return un(); } return prim(); };
-    const prim = () => {
-      const k = T[p++]; if (!k) throw 0;
-      if (k.t === 'n') return k.v;
-      if (k.t === 's') { const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k.v); return dm ? { d: Date.UTC(+dm[1], +dm[2] - 1, +dm[3]) / DAY } : k.v; }
-      if (k.t === 'r') return ref(k.v);
-      if (k.t === 'o' && k.v === '(') { const v = expr0(); if (!peek(')')) throw 0; p++; return v; }
-      if (k.t === 'i') {
-        if (peek('(')) {
-          p++; const args = [];
-          if (peek(')')) p++; else { for (;;) { args.push(expr0()); if (peek(',')) { p++; continue; } if (peek(')')) { p++; break; } throw 0; } }
-          const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args.reduce((acc, x) => acc.concat(Array.isArray(x) ? x : [x]), []));
-        }
-        const U = k.v.toUpperCase();
-        if ((U === 'TRUE' || U === 'FALSE') && !(k.v in data)) return U === 'TRUE' ? 1 : 0;
-        if (peek(':')) { p++; const e2 = T[p++]; if (!e2 || e2.t !== 'i') throw 0; const a = colIdx(k.v), b = colIdx(e2.v); if (a < 0 || b < 0 || !cols) throw 0; const out = []; for (let x = Math.min(a, b); x <= Math.max(a, b); x++) if (cols[x] !== undefined) out.push(ref(cols[x])); return out; }
-        return nameRef(k.v);
-      }
-      throw 0;
-    };
-    let r = expr0(); if (p < T.length) return '';
-    if (r == null || Array.isArray(r)) return ''; if (isD(r)) return toStr(r); if (typeof r === 'string') return r;
-    return isFinite(r) ? Math.round(r * 100) / 100 : '';
+    const s = String(expr).replace(/\{([^}]+)\}|[A-Za-z_]\w*/g, (m0, k) => String(Number(data[(k || m0).trim()]) || 0));
+    if (!/^[0-9+\-*/().\s%]*$/.test(s)) return '';
+    const r = Function('"use strict";return (' + s + ')')(); return isFinite(r) ? Math.round(r * 100) / 100 : '';
   } catch (e) { return ''; }
 }
 const schemaOf = tab => S.tabs.find(x => x.name === tab);
@@ -242,7 +132,7 @@ const vf = sc => sc.fields.filter(f => !f.hidden);
 const canR = (sc, r) => (sc.rights || '').includes(r);
 const blank = f => f.type === 'checkbox' ? false : (f.type === 'multiselect' || f.type === 'file') ? [] : '';
 const blankDraft = sc => Object.fromEntries(sc.fields.map(f => [f.key, blank(f)]));
-function recalc(sc, d) { const ck = sc.fields.map(f => f.key); sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d, ck); }); }
+function recalc(sc, d) { sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d); }); }
 const isEmpty = v => v === '' || v == null || (Array.isArray(v) && !v.length);
 function fieldError(sc, f, d) {
   if (f.showIf && !cond(f.showIf, d)) return '';
@@ -260,8 +150,7 @@ function displayVal(f, v) {
     case 'file': return '📎 ' + v.length;
     case 'checkbox': return v ? '✓' : '—';
     case 'multiselect': return v.join(', ');
-    case 'number': return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
-    case 'calc': if (typeof v === 'string' && isNaN(Number(v))) return /^\d{4}-\d{2}-\d{2}$/.test(v) ? displayVal({ type: 'date' }, v) : v; return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
+    case 'number': case 'calc': return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
     case 'date': try { return new Date(v + 'T00:00').toLocaleDateString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium' }); } catch (e) { return v; }
     case 'datetime': try { return new Date(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return v; }
     default: return String(v);
@@ -476,10 +365,10 @@ function openSheet(html, { wide = false, onClose } = {}) {
   return o;
 }
 function closeSheet(silent) { const o = $('#overlay'); if (!o) return; o.classList.remove('open'); o.id = ''; const cb = o._onClose; setTimeout(() => o.remove(), 240); if (!silent && cb) cb(); }
-function confirmDlg(msg, danger = true) {
+function confirmDlg(msg, danger = true, label) {
   return new Promise(res => {
     const o = document.createElement('div'); o.id = 'dlg'; o.className = 'overlay';
-    o.style.alignItems = 'center'; o.innerHTML = `<div class="sheet glass" style="max-width:360px;border-radius:22px;transform:scale(.94)"><div class="sheet-body" style="padding:22px"><p style="margin:0 0 18px;font-weight:600">${esc(msg)}</p><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-r="0">${esc(t('cancel'))}</button><button class="btn ${danger ? 'danger' : 'primary'}" style="flex:1" data-r="1">${esc(t('del'))}</button></div></div></div>`;
+    o.style.alignItems = 'center'; o.innerHTML = `<div class="sheet glass" style="max-width:360px;border-radius:22px;transform:scale(.94)"><div class="sheet-body" style="padding:22px"><p style="margin:0 0 18px;font-weight:600">${esc(msg)}</p><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-r="0">${esc(t('cancel'))}</button><button class="btn ${danger ? 'danger' : 'primary'}" style="flex:1" data-r="1">${esc(label || t('del'))}</button></div></div></div>`;
     document.body.appendChild(o); requestAnimationFrame(() => { o.classList.add('open'); $('.sheet', o).style.transform = 'none'; });
     o.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b || e.target === o) { o.classList.remove('open'); setTimeout(() => o.remove(), 200); res(b?.dataset.r === '1'); } });
   });
@@ -531,12 +420,11 @@ async function refresh() {
   const b = await api('bootstrap');
   S.user = b.user; S.tabs = b.tabs; await meta.set('user', S.user); await meta.set('schema', S.tabs);
   if (!S.tabs.find(x => x.name === S.view.tab)) S.view.tab = S.tabs[0]?.name || null;
-  await pullAll();
+  await pullAll(); ensureDash(); await pullDash();
 }
 
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
-  hideSplash();
   closeSheet(true);
   $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
@@ -557,7 +445,7 @@ async function onLogin(e) {
     const r = await api('login', { username: u, password: p, device: navigator.userAgent.slice(0, 120) }, { auth: false });
     if (localStorage.getItem('hr_lastuser') && localStorage.getItem('hr_lastuser') !== r.user.username) { await Promise.all(['records', 'queue', 'files', 'meta'].map(s => DB.clear(s))); S.data = {}; S.lastSync = {}; }
     S.token = r.token; S.user = r.user; localStorage.setItem('hr_token', r.token); localStorage.setItem('hr_lastuser', r.user.username);
-    await refresh(); await refreshPending(); startTimers(); renderApp(); flush();
+    await refresh(); await refreshPending(); startTimers(); S.view.kind = 'dash'; DASH.edit = false; renderApp(); flush();
   } catch (err) {
     btn.disabled = false; btn.textContent = t('login');
     if (err.code === 'locked') {
@@ -572,12 +460,11 @@ async function onLogin(e) {
 
 /* ----------------------------- shell ----------------------------- */
 function navItems() {
-  const items = S.tabs.map(tb => ({ id: 'tab:' + tb.name, em: tb.icon || '📄', label: tl(tb), on: S.view.kind === 'tab' && S.view.tab === tb.name }));
+  const items = [{ id: 'dash', em: '📊', label: t('dashboard'), on: S.view.kind === 'dash' }].concat(S.tabs.map(tb => ({ id: 'tab:' + tb.name, em: tb.icon || '📄', label: tl(tb), on: S.view.kind === 'tab' && S.view.tab === tb.name })));
   if (S.user.role === 'admin') items.push({ id: 'admin', em: '🛡️', label: t('admin'), on: S.view.kind === 'admin' });
   return items;
 }
 function renderApp() {
-  hideSplash();
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
@@ -600,6 +487,7 @@ function renderBell() { const n = $('#bellN'); if (!n) return; n.innerHTML = S.a
 function renderMain() {
   clearInterval(S.adminTimer);
   if (S.view.kind === 'admin' && S.user.role === 'admin') { $('#hdTitle').textContent = '🛡️ ' + t('admin'); $('#fab').style.display = 'none'; renderAdmin(); }
+  else if (S.view.kind === 'dash') { $('#hdTitle').textContent = '📊 ' + t('dashboard'); $('#fab').style.display = 'none'; renderDash(); }
   else { S.view.kind = 'tab'; renderTabShell(); }
 }
 
@@ -635,13 +523,14 @@ function renderSugg() {
   box.innerHTML = rows.map(r => `<button data-act="open" data-id="${esc(r._id)}">${hl(displayVal(tf, r[tf.key]) || '—', q)}</button>`).join('');
 }
 function renderList() {
+  if (S.view.kind === 'dash') { dashSoft(); return; }
   const box = $('#list'); const sc = schemaOf(S.view.tab); if (!box || !sc || S.view.kind !== 'tab') return;
   const rows = rowsFor(sc), q = S.search, f = vf(sc), lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards'), shown = rows.slice(0, S.limit);
   if (!rows.length) { box.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--muted)"><div style="font-size:46px;margin-bottom:8px">🗂️</div><b style="color:var(--text)">${esc(t('noData'))}</b><div>${canR(sc, 'w') ? esc(t('noDataHint')) : ''}</div></div>`; return; }
   const more = rows.length > shown.length ? `<button class="btn" style="width:100%;margin-top:8px" data-act="more">+ ${rows.length - shown.length}</button>` : '';
   if (lay === 'table') {
     const cols = f.filter(x => x.type !== 'longtext').slice(0, 8);
-    box.innerHTML = `<table class="t"><thead><tr><th></th>${cols.map(c => `<th>${esc(fl(c))}</th>`).join('')}</tr></thead><tbody>${shown.map(r => `<tr class="row" data-act="open" data-id="${esc(r._id)}"><td style="width:20px">${r._pending ? '<span class="dotp"></span>' : ''}</td>${cols.map((c, i) => `<td>${i === 0 ? '<b>' : ''}${hl(displayVal(c, r[c.key]), q)}${i === 0 ? '</b>' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table>${more}`;
+    box.innerHTML = `<div class="tscroll"><table class="t"><thead><tr><th></th>${cols.map(c => `<th>${esc(fl(c))}</th>`).join('')}</tr></thead><tbody>${shown.map(r => `<tr class="row" data-act="open" data-id="${esc(r._id)}"><td style="width:20px">${r._pending ? '<span class="dotp"></span>' : ''}</td>${cols.map((c, i) => `<td>${i === 0 ? '<b>' : ''}${hl(displayVal(c, r[c.key]), q)}${i === 0 ? '</b>' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${more}`;
   } else {
     const tf = f[0], sel = f.find(x => x.type === 'select'), subs = f.filter(x => x !== tf && x !== sel && !['longtext', 'file', 'checkbox'].includes(x.type)).slice(0, 2);
     box.innerHTML = shown.map((r, i) => `<div class="swipe" data-id="${esc(r._id)}" style="animation-delay:${Math.min(i, 8) * 25}ms"><div class="swipe-bg"><span class="e">${ic('edit')}</span><span class="x">${ic('trash')}</span></div>
@@ -878,10 +767,10 @@ async function admOverview() {
       const r = await api('admin_overview'); if (S.view.kind !== 'admin' || S.view.admin !== 'overview') return;
       S.alerts = r.kpis.openAlerts; renderBell(); const k = r.kpis, max = Math.max(1, ...r.hourly), now = new Date().getHours();
       box.innerHTML = `<div class="kpis">${[['onlineNow', k.online, 'var(--ok)'], ['totalUsers', k.total, 'var(--accent)'], ['actionsToday', k.actionsToday, 'var(--accent2)'], ['openAlerts', k.openAlerts, k.openAlerts ? 'var(--err)' : 'var(--muted)']].map(([l, v, c]) => `<div class="kpi glass" style="--c:${c}"><small>${esc(t(l))}</small><b style="color:${c}">${v}</b></div>`).join('')}</div>
-      ${r.alerts.length ? `<div style="margin-top:14px">${r.alerts.map(a => `<div class="alert"><span style="font-size:22px">🚨</span><div style="flex:1"><b>${esc(t('brute'))}</b><div style="font-size:13px">${esc(a.message)}</div><div class="muted" style="font-size:12px">${fullTime(a.ts)}</div></div><button class="btn" data-act="ack" data-id="${esc(a.id)}">${esc(t('ack'))}</button></div>`).join('')}</div>` : ''}
+      ${r.alerts.length ? `<div style="margin-top:14px">${r.alerts.map(a => `<div class="alert"><span style="font-size:22px">🚨</span><div style="flex:1;min-width:0;word-break:break-word"><b>${esc(t('brute'))}</b><div style="font-size:13px">${esc(a.message)}</div><div class="muted" style="font-size:12px">${fullTime(a.ts)}</div></div><button class="btn" data-act="ack" data-id="${esc(a.id)}">${esc(t('ack'))}</button></div>`).join('')}</div>` : ''}
       <div class="card glass" style="margin-top:14px"><b>${esc(t('onlineNow'))} / ${esc(t('users'))}</b>${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}<span class="on ${u.online ? 'y' : ''}"></span></div><div style="flex:1;min-width:0"><b>${esc(u.name || u.username)}</b> <span class="badge">${esc(u.role)}</span>${u.locked ? ` <span class="badge" style="color:var(--err)">🔒 ${esc(t('locked'))}</span>` : ''}${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px">@${esc(u.username)} · ${esc(presenceText(u))}</div></div>${u.locked ? `<button class="btn" data-act="unlock" data-id="${esc(u.username)}">${esc(t('unlock'))}</button>` : ''}</div>`).join('')}</div>
       <div class="card glass" style="margin-top:14px"><b>${esc(t('activity24'))}</b><svg viewBox="0 0 240 70" style="width:100%;height:90px;margin-top:8px">${r.hourly.map((v, i) => { const h = Math.round(v / max * 56); return `<rect x="${i * 10 + 1}" y="${64 - h}" width="8" height="${Math.max(h, 2)}" rx="2" fill="url(#g)" opacity="${v ? 1 : .25}"/>`; }).join('')}<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent2)"/></linearGradient></defs></svg></div>
-      <div class="card glass" style="margin-top:14px"><b>${esc(t('recent'))}</b>${r.recent.map(a => `<div class="urow" style="font-size:13px"><span class="badge ${esc(a.action)}">${esc(a.action)}</span><b>${esc(a.user)}</b><span class="muted" style="flex:1">${esc(a.tab)}</span><span class="muted">${hhmm(a.ts)}</span></div>`).join('') || `<div class="muted">—</div>`}</div>`;
+      <div class="card glass" style="margin-top:14px"><b>${esc(t('recent'))}</b>${r.recent.map(a => `<div class="urow wrap" style="font-size:13px"><span class="badge ${esc(a.action)}">${esc(a.action)}</span><b>${esc(a.user)}</b><span class="muted" style="flex:1">${esc(a.tab)}</span><span class="muted">${hhmm(a.ts)}</span></div>`).join('') || `<div class="muted">—</div>`}</div>`;
     } catch (e) { adminErr(e); }
   };
   await load(); S.adminTimer = setInterval(load, CONFIG.ADMIN_POLL_MS);
@@ -890,14 +779,14 @@ async function admAudit() {
   const box = $('#adm'), q = S.auditQ; box.innerHTML = '<div class="skeleton"></div>';
   try {
     const [u, r] = await Promise.all([api('admin_users'), api('admin_audit', { filters: q.filters, page: q.page })]); const F = q.filters;
-    box.innerHTML = `<div class="card glass" style="margin-bottom:12px"><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" class="md:grid-cols-4">
+    box.innerHTML = `<div class="card glass" style="margin-bottom:12px"><div class="afilt">
       <select class="inp" id="aq_user"><option value="">${esc(t('user'))}: ${esc(t('allUsers'))}</option>${u.users.map(x => `<option ${F.user === x.username ? 'selected' : ''}>${esc(x.username)}</option>`).join('')}</select>
       <select class="inp" id="aq_tab"><option value="">${esc(t('allTabs'))}</option>${u.tabs.map(x => `<option ${F.tab === x.name ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
       <select class="inp" id="aq_action"><option value="">${esc(t('allActions'))}</option>${ACTIONS.map(x => `<option ${F.action === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       <input class="inp" id="aq_text" placeholder="${esc(t('search'))}" value="${esc(F.text || '')}">
       <input class="inp" id="aq_from" type="date" value="${esc(F.from || '')}" title="${esc(t('from'))}"><input class="inp" id="aq_to" type="date" value="${esc(F.to || '')}" title="${esc(t('to'))}">
-      <button class="btn primary" data-act="aq_apply" style="grid-column:span 2">${ic('search')} ${esc(t('apply'))}</button></div></div>
-      <div class="muted" style="margin:0 4px 8px;font-size:13px">${r.total} ${esc(t('rows'))}</div><div style="overflow-x:auto"><table class="t"><thead><tr><th>${esc(t('time'))}</th><th>${esc(t('user'))}</th><th>${esc(t('action'))}</th><th>${esc(t('tabs'))}</th><th>${esc(t('details'))}</th></tr></thead><tbody>
+      <button class="btn primary afbtn" data-act="aq_apply">${ic('search')} ${esc(t('apply'))}</button></div></div>
+      <div class="muted" style="margin:0 4px 8px;font-size:13px">${r.total} ${esc(t('rows'))}</div><div class="tscroll"><table class="t aud"><thead><tr><th>${esc(t('time'))}</th><th>${esc(t('user'))}</th><th>${esc(t('action'))}</th><th>${esc(t('tabs'))}</th><th>${esc(t('details'))}</th></tr></thead><tbody>
       ${r.rows.map(a => `<tr><td style="white-space:nowrap">${fullTime(a.ts)}</td><td>${esc(a.user)}</td><td><span class="badge ${esc(a.action)}">${esc(a.action)}</span></td><td>${esc(a.tab)}<div class="muted" style="font-size:11px">${esc(String(a.rowId).slice(0, 8))}</div></td><td style="max-width:360px"><details><summary class="muted" style="cursor:pointer;font-size:12px">${esc(String(a.details).slice(0, 60))}</summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:11px;margin:6px 0 0">${esc(prettyJson(a.details))}</pre></details></td></tr>`).join('')}</tbody></table></div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted" style="align-self:center">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
   } catch (e) { adminErr(e); }
@@ -936,101 +825,298 @@ function openUserForm(username) {
 async function admTabs() {
   const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
   try {
-    const r = await api('admin_tabs'); S.admTabs = r.tabs;
-    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>${tb.icon} ${esc(tb.label)}</b> ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}</div><button class="btn" data-act="tab_edit" data-id="${esc(tb.name)}">✏️ ${esc(S.lang === 'ar' ? 'تعديل' : 'Edit')}</button></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge" ${f.calc ? `title="${esc(f.calc)}"` : ''} style="${f.hidden ? 'opacity:.5' : ''}">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
+    const r = await api('admin_tabs');
+    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><b>${tb.icon} ${esc(tb.label)}</b> ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
   } catch (e) { adminErr(e); }
 }
-function openTabBuilder(tabName) {
-  const L = (en, ar) => S.lang === 'ar' ? ar : en;
-  const edit = tabName ? (S.admTabs || []).find(x => x.name === tabName) : null;
-  const newRow = () => ({ orig: '', label: '', ar: '', type: 'text', req: false, options: '' });
-  const rows = edit ? edit.fields.map(f => ({ orig: f.key, label: f.label, ar: f.ar || '', type: f.type, req: !!f.req, readonly: !!f.readonly, hidden: !!f.hidden, options: f.lookup ? '' : (f.options || []).join(', '), calc: f.calc || '', showIf: f.showIf || '', reqIf: f.reqIf || '', lookup: f.lookup || '', maxMB: f.maxMB ?? '', maxFiles: f.maxFiles ?? '', min: f.min ?? '', max: f.max ?? '' })) : [newRow()];
+function openTabBuilder() {
+  const rows = [{ label: '', ar: '', type: 'text', req: false, options: '' }];
   const TYPES = Object.keys(T_TYPES.en);
-  const QOPS = {
-    days: [L('Days between two dates', 'عدد الأيام بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "d")`],
-    months: [L('Months between two dates', 'عدد الشهور بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "m")`],
-    years: [L('Years between two dates (age)', 'عدد السنين بين تاريخين (العمر)'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "y")`],
-    adddays: [L('Add days to a date', 'إضافة أيام لتاريخ'), L('Date', 'التاريخ'), L('Days', 'عدد الأيام'), (a, b) => `ADDDAYS(${a}, ${b})`],
-    addmonths: [L('Add months to a date', 'إضافة شهور لتاريخ'), L('Date', 'التاريخ'), L('Months', 'عدد الشهور'), (a, b) => `EDATE(${a}, ${b})`],
-    add: [L('Add (first + second)', 'جمع (الأول + الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} + ${b}`],
-    sub: [L('Subtract (first − second)', 'طرح (الأول − الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} - ${b}`],
-    mul: [L('Multiply (first × second)', 'ضرب (الأول × الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} * ${b}`],
-    div: [L('Divide (first ÷ second)', 'قسمة (الأول ÷ الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} / ${b}`],
-    pct: [L('Percentage (first × second%)', 'نسبة مئوية (الأول × الثاني%)'), L('Amount', 'المبلغ'), L('Percent', 'النسبة'), (a, b) => `${a} * ${b} / 100`]
-  };
-  const FNS = [['DATEDIF', L('DATEDIF (start, end, "d"/"m"/"y")', 'DATEDIF فرق تاريخين (البداية، النهاية، "d"/"m"/"y")')], ['DAYS', L('DAYS (end, start)', 'DAYS أيام بين تاريخين (النهاية، البداية)')], ['TODAY', L('TODAY', 'TODAY تاريخ اليوم')], ['EDATE', L('EDATE (date, months)', 'EDATE إضافة شهور (التاريخ، عدد)')], ['ADDDAYS', L('ADDDAYS (date, days)', 'ADDDAYS إضافة أيام (التاريخ، عدد)')], ['EOMONTH', L('EOMONTH (date, months)', 'EOMONTH آخر يوم في الشهر')], ['YEAR', L('YEAR', 'YEAR السنة')], ['MONTH', L('MONTH', 'MONTH الشهر')], ['DAY', L('DAY', 'DAY اليوم')], ['IF', L('IF (test, yes, no)', 'IF لو (الشرط، نعم، لا)')], ['IFERROR', L('IFERROR (x, instead)', 'IFERROR لو في خطأ')], ['AND', 'AND'], ['OR', 'OR'], ['SUM', L('SUM', 'SUM مجموع')], ['AVG', L('AVG (average)', 'AVG متوسط')], ['MIN', 'MIN'], ['MAX', 'MAX'], ['ROUND', L('ROUND (x, digits)', 'ROUND تقريب')], ['ROUNDUP', 'ROUNDUP'], ['ROUNDDOWN', 'ROUNDDOWN'], ['INT', 'INT'], ['MOD', L('MOD (x, y)', 'MOD باقي القسمة')], ['ABS', 'ABS'], ['CONCAT', L('CONCAT (join text)', 'CONCAT دمج نصوص')], ['LEFT', 'LEFT'], ['RIGHT', 'RIGHT'], ['LEN', 'LEN'], ['UPPER', 'UPPER'], ['LOWER', 'LOWER'], ['TRIM', 'TRIM']];
-  const o = openSheet(`<div class="hd"><h3>${esc(edit ? L('Edit tab', 'تعديل الصفحة') : t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name" value="${esc(edit ? edit.label : '')}"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar" value="${esc(edit ? edit.ar || '' : '')}"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="${esc(edit ? edit.icon || '📄' : '📄')}" style="text-align:center"></div></div>
-    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Formulas work like Excel: start with =, use column names, [Column Name], or column letters like D2 (the 4th column). Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
+  const o = openSheet(`<div class="hd"><h3>${esc(t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="📄" style="text-align:center"></div></div>
     <label class="lab">${esc(t('fields'))}</label><div id="b_rows"></div><button class="btn" data-b="add" style="width:100%;margin:6px 0 14px">${ic('plus')} ${esc(t('addField'))}</button><button class="btn primary" data-b="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`, { wide: true });
-
-  const prevCols = i => rows.slice(0, i).filter(r => r.label.trim() && r.type !== 'file').map(r => r.label.trim());
-  const fillCols = sel => { const cur = sel.value, i = +sel.closest('[data-i]').dataset.i; sel.innerHTML = `<option value="">${esc(sel.dataset.ph || '—')}</option>${sel.dataset.today ? `<option value="__today">📅 ${esc(L('Today', 'اليوم'))}</option>` : ''}${prevCols(i).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}`; sel.value = cur; };
-  const sample = mode => { const d = {}, ck = rows.filter(r => r.label.trim()).map(r => r.label.trim()); rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; const txt = r.type === 'text' || r.type === 'longtext' || r.type === 'phone' || r.type === 'email' || r.type === 'select'; const dt = new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10); d[key] = r.type === 'date' ? dt : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d, ck) : r.type === 'checkbox' ? 1 : txt && mode === 'date' ? dt : txt && mode === 'num' ? 10 + k : 'abc'; }); return d; };
-  const prevCalc = i => {
-    const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; }
-    const ck = rows.filter(x => x.label.trim()).map(x => x.label.trim()); let v = '', used = '';
-    for (const mode of ['', 'date', 'num']) { v = calcVal(r.calc, sample(mode), ck); if (v !== '') { used = mode; break; } }
-    el.style.color = v === '' ? 'var(--err)' : 'var(--ok)';
-    el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v + (used ? L('  (works if the text columns hold ' + (used === 'date' ? 'dates' : 'numbers') + ')', '  (شغالة لو أعمدة النص فيها ' + (used === 'date' ? 'تواريخ' : 'أرقام') + ')') : '');
-  };
-  const ins = (inp, txt, back = 0) => { const a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a; inp.value = inp.value.slice(0, a) + txt + inp.value.slice(z); const pos = a + txt.length - back; inp.focus(); inp.setSelectionRange(pos, pos); inp.dispatchEvent(new Event('input', { bubbles: true })); };
-  const calcBox = (r, i) => `<div style="margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--line,#475569)">
-      <input class="inp" data-p="calc" dir="ltr" placeholder="=Qty*Price    |    =D2-E2    |    =DATEDIF(Start, End, &quot;d&quot;)    |    =[Total Fee]*2" value="${esc(r.calc || '')}">
-      <div data-prev class="muted" style="font-size:12px;margin:6px 0"></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-        <select class="inp" data-cols data-ins style="flex:1;min-width:130px" data-ph="${esc(L('＋ Column…', '＋ أدخل عمود…'))}"></select>
-        ${[['+', '+'], ['-', '−'], ['*', '×'], ['/', '÷'], ['^', '^'], ['&', '&'], ['(', '('], [')', ')']].map(([v, s]) => `<button type="button" class="btn" data-op="${v}" style="min-width:38px">${s}</button>`).join('')}
-        <select class="inp" data-fn style="flex:1;min-width:130px"><option value="">${esc(L('＋ Function…', '＋ دالة…'))}</option>${FNS.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>
-      </div>
-      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px;font-weight:600">${esc(L('⚡ Quick helper — no typing', '⚡ مساعد سريع — من غير كتابة'))}</summary>
-        <div style="display:grid;gap:8px;margin-top:8px">
-          <select class="inp" data-q="op">${Object.entries(QOPS).map(([k, v]) => `<option value="${k}">${esc(v[0])}</option>`).join('')}</select>
-          <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;align-items:center"><span class="muted" data-ql="a" style="grid-column:1/3;font-size:12px"></span><select class="inp" data-cols data-q="a" data-today="1" data-ph="${esc(L('Pick column', 'اختر عمود'))}"></select><input class="inp" data-q="an" inputmode="decimal" dir="ltr" placeholder="${esc(L('or #', 'أو رقم'))}"></div>
-          <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;align-items:center"><span class="muted" data-ql="b" style="grid-column:1/3;font-size:12px"></span><select class="inp" data-cols data-q="b" data-today="1" data-ph="${esc(L('Pick column', 'اختر عمود'))}"></select><input class="inp" data-q="bn" inputmode="decimal" dir="ltr" placeholder="${esc(L('or #', 'أو رقم'))}"></div>
-          <button type="button" class="btn primary" data-qgo>${esc(L('Build formula', 'اعمل الصيغة'))}</button>
-        </div></details></div>`;
-  const draw = () => {
-    $('#b_rows', o).innerHTML = rows.map((r, i) => `<div class="card" style="margin-bottom:8px;padding:10px;${r.hidden ? 'opacity:.55' : ''}" data-i="${i}"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input class="inp" data-p="label" placeholder="${esc(t('label'))}" value="${esc(r.label)}"><input class="inp" data-p="ar" placeholder="${esc(t('labelAr'))}" value="${esc(r.ar)}"><select class="inp" data-p="type">${TYPES.map(x => `<option value="${x}" ${r.type === x ? 'selected' : ''}>${esc(typeName(x))}</option>`).join('')}</select>
-    <div style="display:flex;align-items:center;gap:8px"><label class="chip ${r.req ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="req" ${r.req ? 'checked' : ''}>${esc(t('required'))}</label>${r.orig ? `<label class="chip ${r.hidden ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="hidden" ${r.hidden ? 'checked' : ''}>${esc(L('Hide', 'إخفاء'))}</label>` : `<button class="btn icon danger" data-rm="${i}">${ic('trash')}</button>`}</div></div>
-    ${['select', 'multiselect'].includes(r.type) ? `<input class="inp" style="margin-top:8px" data-p="options" placeholder="${esc(t('options'))}" value="${esc(r.options)}">` : ''}${r.type === 'calc' ? calcBox(r, i) : ''}${r.type === 'number' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="min" placeholder="min" value="${esc(r.min ?? '')}"><input class="inp" type="number" data-p="max" placeholder="max" value="${esc(r.max ?? '')}"></div>` : ''}${r.type === 'file' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="maxMB" placeholder="max MB" value="${esc(r.maxMB || '')}"><input class="inp" type="number" data-p="maxFiles" placeholder="max files" value="${esc(r.maxFiles || '')}"></div>` : ''}
-    <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${esc(t('advanced'))}</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" data-p="showIf" dir="ltr" placeholder="showIf: Status=Hired" value="${esc(r.showIf || '')}"><input class="inp" data-p="reqIf" dir="ltr" placeholder="reqIf: Status=Hired" value="${esc(r.reqIf || '')}"><input class="inp" data-p="lookup" dir="ltr" placeholder="lookup: Clients.Company" value="${esc(r.lookup || '')}"><label class="chip ${r.readonly ? 'on' : ''}" style="text-align:center"><input type="checkbox" hidden data-p="readonly" ${r.readonly ? 'checked' : ''}>${esc(L('Read-only', 'قراءة فقط'))}</label></div></details></div>`).join('');
-    $$('[data-cols]', o).forEach(fillCols); $$('[data-q="op"]', o).forEach(s => qLabels(s));
-    rows.forEach((r, i) => { if (r.type === 'calc') prevCalc(i); });
-  };
-  const qLabels = sel => { const box = sel.closest('[data-i]'), q = QOPS[sel.value]; $('[data-ql="a"]', box).textContent = q[1]; $('[data-ql="b"]', box).textContent = q[2]; };
+  const draw = () => { $('#b_rows', o).innerHTML = rows.map((r, i) => `<div class="card" style="margin-bottom:8px;padding:10px" data-i="${i}"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px"><input class="inp" data-p="label" placeholder="${esc(t('label'))}" value="${esc(r.label)}"><input class="inp" data-p="ar" placeholder="${esc(t('labelAr'))}" value="${esc(r.ar)}"><select class="inp" data-p="type">${TYPES.map(x => `<option value="${x}" ${r.type === x ? 'selected' : ''}>${esc(typeName(x))}</option>`).join('')}</select>
+    <div style="display:flex;align-items:center;gap:8px"><label class="chip ${r.req ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="req" ${r.req ? 'checked' : ''}>${esc(t('required'))}</label><button class="btn icon danger" data-rm="${i}">${ic('trash')}</button></div></div>
+    ${['select', 'multiselect'].includes(r.type) ? `<input class="inp" style="margin-top:8px" data-p="options" placeholder="${esc(t('options'))}" value="${esc(r.options)}">` : ''}${r.type === 'calc' ? `<input class="inp" style="margin-top:8px" data-p="calc" dir="ltr" placeholder="{Qty}*{Price}" value="${esc(r.calc || '')}">` : ''}${r.type === 'file' ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px"><input class="inp" type="number" data-p="maxMB" placeholder="max MB" value="${esc(r.maxMB || '')}"><input class="inp" type="number" data-p="maxFiles" placeholder="max files" value="${esc(r.maxFiles || '')}"></div>` : ''}
+    <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${esc(t('advanced'))}</summary><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px"><input class="inp" data-p="showIf" dir="ltr" placeholder="showIf: Status=Hired" value="${esc(r.showIf || '')}"><input class="inp" data-p="reqIf" dir="ltr" placeholder="reqIf: Status=Hired" value="${esc(r.reqIf || '')}"><input class="inp" data-p="lookup" dir="ltr" placeholder="lookup: Clients.Company" value="${esc(r.lookup || '')}"></div></details></div>`).join(''); };
   draw();
-  o.addEventListener('focusin', e => { if (e.target.matches('[data-cols]')) fillCols(e.target); });
-  o.addEventListener('input', e => { const p = e.target.dataset.p; if (!p) return; const i = +e.target.closest('[data-i]').dataset.i; rows[i][p] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; if (p === 'calc' || p === 'label' || p === 'type') rows.forEach((r, k) => { if (r.type === 'calc') prevCalc(k); }); });
-  o.addEventListener('change', e => {
-    const d = e.target.dataset, p = d.p, box = e.target.closest('[data-i]');
-    if (d.ins !== undefined) { if (e.target.value) ins($('[data-p="calc"]', box), `{${e.target.value}}`); e.target.value = ''; return; }
-    if (d.fn !== undefined) { const f = e.target.value; if (f) ins($('[data-p="calc"]', box), f + '()', 1); e.target.value = ''; return; }
-    if (d.q === 'op') return qLabels(e.target);
-    if (p === 'type' || p === 'req' || p === 'hidden' || p === 'readonly') draw();
-  });
+  o.addEventListener('input', e => { const p = e.target.dataset.p; if (!p) return; const i = +e.target.closest('[data-i]').dataset.i; rows[i][p] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; });
+  o.addEventListener('change', e => { const p = e.target.dataset.p; if (p === 'type' || p === 'req') draw(); });
   o.addEventListener('click', async e => {
-    const op = e.target.closest('[data-op]');
-    if (op) { ins($('[data-p="calc"]', op.closest('[data-i]')), op.dataset.op); return; }
-    const go = e.target.closest('[data-qgo]');
-    if (go) {
-      const box = go.closest('[data-i]'), q = k => $(`[data-q="${k}"]`, box);
-      const val = k => { const n = q(k + 'n').value.trim(); if (n !== '') return isNaN(Number(n)) ? '' : n; const c = q(k).value; return c === '__today' ? 'TODAY()' : c ? `{${c}}` : ''; };
-      const a = val('a'), b = val('b');
-      if (!a || !b) return toast(L('Pick both values (a column, Today, or a number)', 'اختار القيمتين (عمود أو اليوم أو رقم)'), 'err');
-      const inp = $('[data-p="calc"]', box); inp.value = QOPS[q('op').value][3](a, b); inp.dispatchEvent(new Event('input', { bubbles: true })); return;
-    }
     const b = e.target.closest('[data-b]'), rm = e.target.closest('[data-rm]');
-    if (rm) { rows.splice(+rm.dataset.rm, 1); if (!rows.length) rows.push(newRow()); return draw(); }
-    if (!b) return; if (b.dataset.b === 'x') return closeSheet(); if (b.dataset.b === 'add') { rows.push(newRow()); draw(); return; }
+    if (rm) { rows.splice(+rm.dataset.rm, 1); if (!rows.length) rows.push({ label: '', ar: '', type: 'text', options: '' }); return draw(); }
+    if (!b) return; if (b.dataset.b === 'x') return closeSheet(); if (b.dataset.b === 'add') { rows.push({ label: '', ar: '', type: 'text', options: '' }); draw(); return; }
     b.disabled = true;
     try {
-      const fields = rows.filter(r => r.label.trim()).map(r => ({ ...r, options: r.options ? r.options.split(',').map(s => s.trim()).filter(Boolean) : [] }));
-      const head = { label: $('#b_name', o).value.trim(), ar: $('#b_ar', o).value.trim(), icon: $('#b_icon', o).value.trim() || '📄', fields };
-      if (edit) { await api('admin_updateTab', { name: edit.name, ...head }); toast(L('Tab updated', 'تم تحديث الصفحة')); }
-      else { await api('admin_createTab', { name: head.label, ...head }); toast(t('tabCreated')); }
-      closeSheet(true); await refresh(); renderApp(); S.view = { kind: 'admin', tab: S.view.tab, admin: 'tabs' }; renderApp();
+      await api('admin_createTab', { name: $('#b_name', o).value.trim(), label: $('#b_name', o).value.trim(), ar: $('#b_ar', o).value.trim(), icon: $('#b_icon', o).value.trim() || '📄', fields: rows.map(r => ({ ...r, options: r.options ? r.options.split(',').map(s => s.trim()).filter(Boolean) : [] })) });
+      toast(t('tabCreated')); closeSheet(true); await refresh(); renderApp(); S.view = { kind: 'admin', tab: S.view.tab, admin: 'tabs' }; renderApp();
     } catch (er) { b.disabled = false; adminErr(er); }
+  });
+}
+
+/* ----------------------------- personal dashboard (per-user, customizable) ----------------------------- */
+const PALETTE = ['var(--accent)', 'var(--accent2)', 'var(--ok)', 'var(--warn)', 'var(--err)', '#f472b6', '#2dd4bf', '#fb923c'];
+const WTYPES = { kpi: '🔢', bar: '📊', hbar: '📶', donut: '🍩', line: '📈', list: '🧾' };
+const WT_KEYS = { kpi: 'wKpi', bar: 'wBar', hbar: 'wHbar', donut: 'wDonut', line: 'wLine', list: 'wList' };
+const DEF_SIZE = { kpi: 's', bar: 'm', hbar: 'm', donut: 'm', line: 'm', list: 'm' };
+const AGG_K = { count: 'aggCount', sum: 'aggSum', avg: 'aggAvg', min: 'aggMin', max: 'aggMax' };
+const RANGE_K = { 7: 'r7', 30: 'r30', 90: 'r90', 365: 'r365' };
+const GROUPED = ['bar', 'hbar', 'donut'];
+const DASH = { cfg: null, u: null, edit: false };
+const dashKey = () => 'hr_dash_' + (S.user?.username || '');
+const loc = () => S.lang === 'ar' ? 'ar-EG' : undefined;
+const fmtN = v => { const n = Math.round((Number(v) || 0) * 100) / 100; return n.toLocaleString(loc()); };
+
+const numFields = sc => sc.fields.filter(f => f.type === 'number' || f.type === 'calc');
+const groupFields = sc => sc.fields.filter(f => !f.hidden && !['file', 'longtext', 'calc', 'number'].includes(f.type));
+const dateFields = sc => sc.fields.filter(f => f.type === 'date' || f.type === 'datetime');
+const mkW = (type, tab, over) => ({ id: uid(), type, tab, title: '', agg: 'count', vKey: '', gKey: '', dKey: '', fKey: '', fVal: '', range: '0', gran: 'month', size: DEF_SIZE[type], color: 0, ...(over || {}) });
+
+function defaultDash() {
+  const ws = [], tabs = S.tabs;
+  tabs.slice(0, 4).forEach((tb, i) => ws.push(mkW('kpi', tb.name, { color: i % PALETTE.length })));
+  let k = 0;
+  tabs.slice(0, 3).forEach(tb => {
+    const g = groupFields(tb).find(f => f.type === 'select' && (f.options || []).length);
+    if (g && k < 2) { ws.push(mkW(k ? 'bar' : 'donut', tb.name, { gKey: g.key })); k++; }
+  });
+  if (tabs[0]) { ws.push(mkW('line', tabs[0].name, { color: 1 })); ws.push(mkW('list', tabs[0].name)); }
+  return { v: 1, updated: 0, widgets: ws };
+}
+function loadDashLocal() { try { const j = JSON.parse(localStorage.getItem(dashKey()) || 'null'); if (j && Array.isArray(j.widgets)) return j; } catch (e) {} return null; }
+function ensureDash() {
+  const u = S.user?.username; if (!u) return;
+  if (!DASH.cfg || DASH.u !== u) { DASH.u = u; DASH.cfg = loadDashLocal() || defaultDash(); }
+}
+async function pushDash() {
+  if (!S.token || !navigator.onLine || !DASH.cfg) return;
+  try { await api('dash_save', { cfg: DASH.cfg }); localStorage.removeItem(dashKey() + '_d'); } catch (e) {}
+}
+function saveDash() {
+  DASH.cfg.updated = Date.now();
+  try { localStorage.setItem(dashKey(), JSON.stringify(DASH.cfg)); localStorage.setItem(dashKey() + '_d', '1'); } catch (e) {}
+  pushDash();
+}
+async function pullDash() {
+  if (!S.token || !navigator.onLine) return false;
+  try {
+    const r = await api('dash_get');
+    if (localStorage.getItem(dashKey() + '_d')) { await pushDash(); return false; }
+    if (r.cfg && Array.isArray(r.cfg.widgets) && (!DASH.cfg || (r.cfg.updated || 0) > (DASH.cfg.updated || 0))) {
+      DASH.cfg = r.cfg; try { localStorage.setItem(dashKey(), JSON.stringify(r.cfg)); } catch (e) {} return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+/* ---- data helpers ---- */
+const dateMs = (r, k) => { if (!k) return r._updated || 0; const v = r[k]; if (!v) return 0; const d = new Date(String(v).length <= 10 ? v + 'T00:00' : v); return isNaN(d) ? 0 : d.getTime(); };
+function wRows(w, sc) {
+  let rows = [...dataOf(sc.name).values()];
+  if (w.fKey && w.fVal !== undefined && w.fVal !== '') rows = rows.filter(r => { const v = r[w.fKey]; return Array.isArray(v) ? v.map(String).includes(String(w.fVal)) : String(v ?? '') === String(w.fVal); });
+  const days = Number(w.range) || 0;
+  if (days) { const lim = Date.now() - days * 86400000; rows = rows.filter(r => dateMs(r, w.dKey) >= lim); }
+  return rows;
+}
+function aggRows(rows, agg, key) {
+  if (agg === 'count' || !key) return rows.length;
+  const xs = rows.filter(r => !isEmpty(r[key])).map(r => Number(r[key])).filter(x => isFinite(x));
+  if (!xs.length) return 0;
+  const sum = xs.reduce((a, b) => a + b, 0);
+  return agg === 'sum' ? sum : agg === 'avg' ? sum / xs.length : agg === 'min' ? Math.min(...xs) : agg === 'max' ? Math.max(...xs) : rows.length;
+}
+function groupRows(w, sc, rows) {
+  const f = sc.fields.find(x => x.key === w.gKey); if (!f) return [];
+  const isD = f.type === 'date' || f.type === 'datetime', m = new Map();
+  rows.forEach(r => {
+    const v = r[f.key]; let keys;
+    if (Array.isArray(v)) keys = v.length ? v.map(String) : [''];
+    else if (f.type === 'checkbox') keys = [v ? '✓' : '—'];
+    else if (isD) keys = [v ? String(v).slice(0, 7) : ''];
+    else keys = [String(v ?? '').trim()];
+    keys.forEach(k => { if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
+  });
+  const out = [...m.entries()].map(([k, rs]) => ({ k, label: k === '' ? '—' : k, v: aggRows(rs, w.agg, w.vKey) }));
+  out.sort(isD ? (a, b) => a.k.localeCompare(b.k) : (a, b) => b.v - a.v);
+  return out;
+}
+function seriesRows(w, rows) {
+  const day = w.gran === 'day', n = day ? 30 : 12, now = new Date(), bs = [];
+  for (let i = n - 1; i >= 0; i--) bs.push({ d: day ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - i) : new Date(now.getFullYear(), now.getMonth() - i, 1), rs: [] });
+  rows.forEach(r => {
+    const ms = dateMs(r, w.dKey); if (!ms) return; const d = new Date(ms);
+    const b = bs.find(x => x.d.getFullYear() === d.getFullYear() && x.d.getMonth() === d.getMonth() && (!day || x.d.getDate() === d.getDate()));
+    if (b) b.rs.push(r);
+  });
+  return bs.map(b => ({ label: b.d.toLocaleDateString(loc(), day ? { day: 'numeric', month: 'short' } : { month: 'short' }), v: aggRows(b.rs, w.agg, w.vKey) }));
+}
+function fixW(w) {
+  if (!schemaOf(w.tab)) w.tab = S.tabs[0]?.name;
+  const sc = schemaOf(w.tab); if (!sc) return;
+  const nums = numFields(sc), grp = groupFields(sc), dts = dateFields(sc);
+  if (!nums.length || w.type === 'list') { w.agg = 'count'; }
+  if (w.agg !== 'count' && !nums.find(f => f.key === w.vKey)) w.vKey = nums[0]?.key || '';
+  if (w.agg === 'count') w.vKey = '';
+  if (GROUPED.includes(w.type) && !grp.find(f => f.key === w.gKey)) w.gKey = (grp.find(f => f.type === 'select') || grp[0])?.key || '';
+  if (w.dKey && !dts.find(f => f.key === w.dKey)) w.dKey = '';
+  if (w.fKey && !grp.find(f => f.key === w.fKey)) { w.fKey = ''; w.fVal = ''; }
+  if (!w.fKey) w.fVal = '';
+}
+const fvLabel = (f, v) => f.type === 'checkbox' ? (String(v) === 'true' ? '✓' : '—') : String(v);
+function wSub(w, sc) {
+  const nf = sc.fields.find(f => f.key === w.vKey);
+  let s = w.agg === 'count' || !nf ? t('records') : `${t(AGG_K[w.agg])} · ${fl(nf)}`;
+  const ff = w.fKey && sc.fields.find(f => f.key === w.fKey);
+  if (ff && w.fVal !== '') s += ` · ${fl(ff)}: ${fvLabel(ff, w.fVal)}`;
+  if (Number(w.range) && RANGE_K[w.range]) s += ` · ${t(RANGE_K[w.range])}`;
+  return s;
+}
+function autoTitle(w, sc) {
+  if (!sc) return '';
+  if (w.type === 'kpi') { const nf = sc.fields.find(f => f.key === w.vKey); return `${tl(sc)} · ${w.agg === 'count' || !nf ? t('records') : t(AGG_K[w.agg]) + ' ' + fl(nf)}`; }
+  if (GROUPED.includes(w.type)) { const g = sc.fields.find(f => f.key === w.gKey); return `${tl(sc)} — ${g ? fl(g) : ''}`; }
+  if (w.type === 'line') return `${tl(sc)} · ${t(w.gran === 'day' ? 'gDay' : 'gMonth')}`;
+  return `${tl(sc)} · ${t('latest')}`;
+}
+
+/* ---- widget renderers ---- */
+function renderW(w, sc) {
+  const rows = wRows(w, sc), col = PALETTE[(Number(w.color) || 0) % PALETTE.length], ty = w.type;
+  const nodata = `<div class="dsub" style="padding:18px 0;text-align:center">${esc(t('noWidgetData'))}</div>`;
+  const wid = esc(w.id);
+  if (ty === 'kpi') return `<div class="dclick" data-act="wdrill" data-w="${wid}"><div class="dbig" style="color:${col}">${esc(fmtN(aggRows(rows, w.agg, w.vKey)))}</div><div class="dsub">${esc(wSub(w, sc))}</div></div>`;
+  if (ty === 'list') {
+    const f0 = vf(sc)[0], sel = vf(sc).find(f => f.type === 'select');
+    const items = rows.sort((a, b) => (b._updated || 0) - (a._updated || 0)).slice(0, w.size === 'l' ? 8 : 5);
+    if (!items.length || !f0) return nodata;
+    return `<div class="dlist">${items.map(r => `<div class="it" data-act="wopen" data-t="${esc(sc.name)}" data-id="${esc(r._id)}"><b>${esc(displayVal(f0, r[f0.key]) || '—')}</b>${sel && r[sel.key] ? `<span class="tag">${esc(r[sel.key])}</span>` : ''}<span class="dsub" style="flex:none">${esc(relTime(r._updated))}</span></div>`).join('')}</div>`;
+  }
+  if (ty === 'line') {
+    const ser = seriesRows(w, rows); if (ser.every(s => !s.v)) return nodata;
+    const max = Math.max(1, ...ser.map(s => s.v)), nn = ser.length, W = 300;
+    const line = ser.map((s, i) => (i * W / (nn - 1)).toFixed(1) + ',' + (92 - Math.max(0, s.v) / max * 80).toFixed(1)).join(' ');
+    const gid = 'lg' + String(w.id).replace(/\W/g, ''), sum = ser.reduce((a, s) => a + s.v, 0);
+    return `<div class="linew"><svg viewBox="0 0 300 100" preserveAspectRatio="none"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${col};stop-opacity:.35"/><stop offset="1" style="stop-color:${col};stop-opacity:0"/></linearGradient></defs><polygon points="0,100 ${line} ${W},100" fill="url(#${gid})"/><polyline points="${line}" fill="none" style="stroke:${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg><div class="ax"><span>${esc(ser[0].label)}</span><span>${esc(ser[Math.floor(nn / 2)].label)}</span><span>${esc(ser[nn - 1].label)}</span></div>${['count', 'sum'].includes(w.agg) ? `<div class="dsub" style="margin-top:4px">${esc(t('total'))}: <b style="color:var(--text)">${esc(fmtN(sum))}</b></div>` : `<div class="dsub" style="margin-top:4px">${esc(wSub(w, sc))}</div>`}</div>`;
+  }
+  const gf = sc.fields.find(f => f.key === w.gKey); if (!gf) return nodata;
+  const isD = gf.type === 'date' || gf.type === 'datetime', lim = ty === 'bar' ? 12 : ty === 'hbar' ? 8 : 6;
+  let d = groupRows(w, sc, rows); if (!d.length) return nodata;
+  if (d.length > lim) {
+    if (ty === 'donut' && ['count', 'sum'].includes(w.agg)) d = d.slice(0, lim - 1).concat([{ k: '', label: t('other'), v: d.slice(lim - 1).reduce((a, x) => a + x.v, 0) }]);
+    else d = isD ? d.slice(-lim) : d.slice(0, lim);
+  }
+  const attr = x => `data-act="wdrill" data-w="${wid}" data-v="${esc(x.k)}" title="${esc(x.label)}: ${esc(fmtN(x.v))}"`;
+  const solid = Number(w.color) ? `background:${col}` : '';
+  if (ty === 'bar') {
+    const max = Math.max(1, ...d.map(x => x.v));
+    return `<div class="dcols">${d.map(x => `<div class="dcol" ${attr(x)}><em>${esc(fmtN(x.v))}</em><div class="bw"><i style="height:${Math.max(2, Math.max(0, x.v) / max * 100)}%;${solid}"></i></div><span>${esc(x.label)}</span></div>`).join('')}</div>`;
+  }
+  if (ty === 'hbar') {
+    const max = Math.max(1, ...d.map(x => x.v));
+    return d.map(x => `<div class="hb" ${attr(x)}><span>${esc(x.label)}</span><div class="tr"><i style="width:${Math.max(2, Math.max(0, x.v) / max * 100)}%;${solid}"></i></div><b>${esc(fmtN(x.v))}</b></div>`).join('');
+  }
+  const total = d.reduce((a, x) => a + Math.max(0, x.v), 0); if (!total) return nodata;
+  const C = 2 * Math.PI * 38; let off = 0;
+  const segs = d.map((x, i) => { const len = Math.max(0, x.v) / total * C, s = `<circle r="38" cx="50" cy="50" fill="none" stroke="${PALETTE[i % PALETTE.length]}" stroke-width="16" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" style="cursor:pointer" ${attr(x)}></circle>`; off += len; return s; }).join('');
+  return `<div class="donutw"><svg viewBox="0 0 100 100"><circle r="38" cx="50" cy="50" fill="none" stroke="var(--surface2)" stroke-width="16"/>${segs}</svg><div class="leg">${d.map((x, i) => `<div ${attr(x)}><i style="background:${PALETTE[i % PALETTE.length]}"></i><span>${esc(x.label)}</span><b>${esc(fmtN(x.v))}</b></div>`).join('')}</div></div>`;
+}
+function widgetHtml(w, i, n) {
+  const sc = schemaOf(w.tab);
+  let body; try { body = sc ? renderW(w, sc) : `<div class="dsub">${esc(t('wUnavail'))}</div>`; } catch (e) { body = '<div class="dsub">—</div>'; }
+  const id = esc(w.id);
+  const tools = DASH.edit ? `<div class="dw-tools"><button class="btn icon ghost" data-act="wmove" data-w="${id}" data-d="-1" title="${esc(t('moveEarlier'))}" ${i === 0 ? 'disabled' : ''}>${ic('up')}</button><button class="btn icon ghost" data-act="wmove" data-w="${id}" data-d="1" title="${esc(t('moveLater'))}" ${i === n - 1 ? 'disabled' : ''}>${ic('down')}</button><button class="btn icon ghost" data-act="wcfg" data-w="${id}" title="${esc(t('edit'))}">${ic('edit')}</button><button class="btn icon danger" data-act="wdel" data-w="${id}" title="${esc(t('del'))}">${ic('trash')}</button></div>` : '';
+  return `<div class="dw glass ${DASH.edit ? 'edit' : ''}" data-s="${esc(w.size || 'm')}"><div class="dw-h"><span class="dw-t">${esc(w.title || autoTitle(w, sc))}</span>${tools}</div>${body}</div>`;
+}
+function renderDash() {
+  const main = $('#main'); if (!main) return; ensureDash();
+  const ws = DASH.cfg.widgets;
+  main.innerHTML = `<div class="dhead"><div class="muted" style="font-size:13px;flex:1 1 200px;min-width:0">${esc(t('dashHint'))}</div><div class="acts">${DASH.edit ? `<button class="btn" data-act="wadd">${ic('plus')} ${esc(t('addWidget'))}</button><button class="btn icon danger" data-act="wreset" title="${esc(t('resetDash'))}">${ic('sync')}</button>` : ''}<button class="btn ${DASH.edit ? 'primary' : ''}" data-act="wedit">${ic(DASH.edit ? 'check' : 'sliders')} ${esc(DASH.edit ? t('doneEdit') : t('customize'))}</button></div></div>
+  ${ws.length ? `<div class="dgrid">${ws.map((w, i) => widgetHtml(w, i, ws.length)).join('')}</div>` : `<div class="card" style="text-align:center;padding:40px"><div style="font-size:46px">📊</div><b>${esc(t('emptyDash'))}</b><div style="margin-top:14px"><button class="btn primary" data-act="wadd">${ic('plus')} ${esc(t('addWidget'))}</button></div></div>`}`;
+}
+const dashSoft = debounce(() => { if (S.view.kind === 'dash' && !$('#overlay') && !$('#dlg')) renderDash(); }, 150);
+
+function drill(tab, key, val) {
+  const sc = schemaOf(tab); if (!sc) return;
+  S.view = { ...S.view, kind: 'tab', tab }; S.limit = CONFIG.PAGE; S.search = ''; S.filter[tab] = null; DASH.edit = false;
+  if (key && val !== undefined && val !== '' && val !== '—') {
+    const f = sc.fields.find(x => x.key === key), sel = vf(sc).find(x => x.type === 'select' && x.options?.length);
+    if (sel && sel.key === key) S.filter[tab] = String(val);
+    else if (f && ['text', 'select', 'phone', 'email', 'multiselect'].includes(f.type)) S.search = String(val);
+  }
+  renderApp();
+}
+function drillW(w, v) {
+  if (GROUPED.includes(w.type)) drill(w.tab, w.gKey, v);
+  else if (w.fKey) drill(w.tab, w.fKey, w.fVal);
+  else drill(w.tab);
+}
+function dashMove(id, d) {
+  const a = DASH.cfg.widgets, i = a.findIndex(x => x.id === id), j = i + d;
+  if (i < 0 || j < 0 || j >= a.length) return;
+  [a[i], a[j]] = [a[j], a[i]]; saveDash(); renderDash();
+}
+async function dashDel(id) {
+  if (!await confirmDlg(t('wDelConfirm'))) return;
+  DASH.cfg.widgets = DASH.cfg.widgets.filter(x => x.id !== id); saveDash(); renderDash();
+}
+
+/* ---- widget editor ---- */
+function openWidgetEditor(wid) {
+  if (!S.tabs.length) { toast(t('noTabs'), 'warn'); return; }
+  const ex = wid ? DASH.cfg.widgets.find(x => x.id === wid) : null;
+  const w = ex ? clone(ex) : mkW('kpi', S.tabs[0].name);
+  fixW(w);
+  const o = openSheet(`<div class="hd"><h3>${ic('chart')} ${esc(ex ? t('editWidget') : t('addWidget'))}</h3><button class="btn icon ghost" data-e="x">${ic('x')}</button></div><div id="wed"></div>`, { wide: true });
+  const box = $('#wed', o);
+  const sel = (k, opts, val) => `<select class="inp" data-w="${k}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(val) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const row = (label, inner) => `<div class="fld"><label class="lab">${esc(label)}</label>${inner}</div>`;
+  const prev = () => { const p = $('#wprevb', box), sc = schemaOf(w.tab); if (p && sc) p.innerHTML = renderW(w, sc); };
+  const draw = () => {
+    fixW(w);
+    const sc = schemaOf(w.tab), nums = numFields(sc), grp = groupFields(sc), dts = dateFields(sc), ty = w.type;
+    const ff = w.fKey && sc.fields.find(f => f.key === w.fKey);
+    const dOpts = [['', t('byUpdated')]].concat(dts.map(f => [f.key, fl(f)]));
+    let fv = '';
+    if (ff) {
+      const opts = ff.type === 'checkbox' ? [['true', '✓'], ['false', '—']] : (ff.options || []).map(x => [x, x]);
+      fv = opts.length ? sel('fVal', [['', t('all')]].concat(opts), w.fVal) : `<input class="inp" data-w="fVal" data-txt="1" value="${esc(w.fVal)}" placeholder="${esc(t('filterVal'))}">`;
+    }
+    const rangeOpts = [['0', t('rAll')]].concat(Object.keys(RANGE_K).map(k => [k, t(RANGE_K[k])]));
+    const useColor = ['kpi', 'bar', 'hbar', 'line'].includes(ty);
+    box.innerHTML = `<div class="typeg">${Object.keys(WTYPES).map(k => `<button type="button" data-type="${k}" class="${ty === k ? 'on' : ''}"><span>${WTYPES[k]}</span>${esc(t(WT_KEYS[k]))}</button>`).join('')}</div>
+      ${row(t('wTitle'), `<input class="inp" data-w="title" data-txt="1" value="${esc(w.title)}" placeholder="${esc(autoTitle(w, sc))}">`)}
+      ${row(t('source'), sel('tab', S.tabs.map(tb => [tb.name, tl(tb)]), w.tab))}
+      ${GROUPED.includes(ty) ? row(t('groupBy'), sel('gKey', grp.map(f => [f.key, fl(f)]), w.gKey)) : ''}
+      ${ty === 'line' ? row(t('dateBy'), sel('dKey', dOpts, w.dKey)) + row(t('gran'), sel('gran', [['month', t('gMonth')], ['day', t('gDay')]], w.gran)) : ''}
+      ${ty !== 'list' ? row(t('aggregate'), sel('agg', nums.length ? Object.keys(AGG_K).map(k => [k, t(AGG_K[k])]) : [['count', t('aggCount')]], w.agg)) : ''}
+      ${ty !== 'list' && w.agg !== 'count' ? row(t('valueField'), sel('vKey', nums.map(f => [f.key, fl(f)]), w.vKey)) : ''}
+      <div class="g2">${row(t('filterBy'), sel('fKey', [['', t('none')]].concat(grp.map(f => [f.key, fl(f)])), w.fKey))}${ff ? row(t('filterVal'), fv) : ''}</div>
+      ${ty !== 'line' ? `<div class="g2">${row(t('range'), sel('range', rangeOpts, w.range))}${Number(w.range) ? row(t('dateBy'), sel('dKey', dOpts, w.dKey)) : ''}</div>` : ''}
+      ${row(t('size'), sel('size', [['s', t('sSmall')], ['m', t('sMed')], ['l', t('sLarge')]], w.size))}
+      ${useColor ? row(t('color'), `<div style="display:flex;gap:8px;flex-wrap:wrap">${PALETTE.map((c, i) => `<button type="button" data-col="${i}" aria-label="color ${i + 1}" style="width:32px;height:32px;border-radius:50%;cursor:pointer;background:${c};border:3px solid ${Number(w.color) === i ? 'var(--text)' : 'transparent'}"></button>`).join('')}</div>`) : ''}
+      <label class="lab">${esc(t('preview'))}</label><div class="wprev"><div class="dw-t" style="margin-bottom:8px">${esc(w.title || autoTitle(w, sc))}</div><div id="wprevb" style="pointer-events:none">${renderW(w, sc)}</div></div>
+      <button class="btn primary" data-e="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`;
+  };
+  draw();
+  o.addEventListener('input', e => { const el = e.target; if (el.dataset && el.dataset.txt) { w[el.dataset.w] = el.value; prev(); } });
+  o.addEventListener('change', e => {
+    const el = e.target.closest('[data-w]'); if (!el || el.dataset.txt) return;
+    const k = el.dataset.w; w[k] = el.value;
+    if (k === 'tab') { w.vKey = w.gKey = w.dKey = w.fKey = w.fVal = ''; }
+    if (k === 'fKey') w.fVal = '';
+    draw();
+  });
+  o.addEventListener('click', e => {
+    const ty = e.target.closest('[data-type]'); if (ty) { w.type = ty.dataset.type; if (!ex) w.size = DEF_SIZE[w.type]; draw(); return; }
+    const c = e.target.closest('[data-col]'); if (c) { w.color = +c.dataset.col; draw(); return; }
+    const b = e.target.closest('[data-e]'); if (!b) return;
+    if (b.dataset.e === 'x') return closeSheet();
+    fixW(w);
+    if (GROUPED.includes(w.type) && !w.gKey) return toast(t('wNeedGroup'), 'err');
+    w.title = String(w.title || '').trim();
+    const arr = DASH.cfg.widgets, i = arr.findIndex(x => x.id === w.id);
+    if (i >= 0) arr[i] = w; else arr.push(w);
+    saveDash(); closeSheet(true); renderDash();
   });
 }
 
@@ -1044,7 +1130,7 @@ document.addEventListener('click', async e => {
   switch (a) {
     case 'sync': syncNow(); break; case 'syncinfo': openSyncInfo(); break;
     case 'theme': toggleTheme(); break; case 'lang': toggleLang(); break; case 'logout': logout(); break;
-    case 'nav': S.view = id === 'admin' ? { ...S.view, kind: 'admin' } : { ...S.view, kind: 'tab', tab: id.slice(4) }; S.search = ''; S.limit = CONFIG.PAGE; renderApp(); break;
+    case 'nav': DASH.edit = false; S.view = id === 'admin' ? { ...S.view, kind: 'admin' } : id === 'dash' ? { ...S.view, kind: 'dash' } : { ...S.view, kind: 'tab', tab: id.slice(4) }; S.search = ''; S.limit = CONFIG.PAGE; renderApp(); break;
     case 'add': { const sc = schemaOf(S.view.tab); if (!sc) break; if (innerWidth < 768) openChat(sc.name); else openNewFormWith(sc.name, blankDraft(sc), uid()); break; }
     case 'open': { const sg = $('#sugg'); if (sg) sg.style.display = 'none'; openRecord(id); break; }
     case 'more': S.limit += CONFIG.PAGE; renderList(); break;
@@ -1053,22 +1139,24 @@ document.addEventListener('click', async e => {
     case 'adm': S.view.admin = id; renderApp(); break;
     case 'ack': try { await api('admin_ackAlert', { id }); admOverview(); } catch (er) { adminErr(er); } break;
     case 'unlock': try { await api('admin_userAction', { username: id, op: 'unlock' }); toast(t('unlock') + ' ✓'); admOverview(); } catch (er) { adminErr(er); } break;
-    case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break; case 'tab_edit': openTabBuilder(id); break;
+    case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break;
+    case 'wedit': DASH.edit = !DASH.edit; renderDash(); break;
+    case 'wadd': openWidgetEditor(null); break;
+    case 'wcfg': openWidgetEditor(el.dataset.w); break;
+    case 'wdel': dashDel(el.dataset.w); break;
+    case 'wmove': dashMove(el.dataset.w, +el.dataset.d); break;
+    case 'wreset': if (await confirmDlg(t('resetConfirm'), true, t('reset'))) { DASH.cfg = defaultDash(); saveDash(); renderDash(); } break;
+    case 'wdrill': { const w = DASH.cfg.widgets.find(x => x.id === el.dataset.w); if (w && !DASH.edit) drillW(w, el.dataset.v); break; }
+    case 'wopen': S.view = { ...S.view, kind: 'tab', tab: el.dataset.t }; S.search = ''; S.filter[el.dataset.t] = null; renderApp(); openRecord(id); break;
     case 'aq_apply': S.auditQ = { page: 0, filters: { user: $('#aq_user').value, tab: $('#aq_tab').value, action: $('#aq_action').value, text: $('#aq_text').value.trim(), from: $('#aq_from').value, to: $('#aq_to').value } }; admAudit(); break;
     case 'apage': S.auditQ.page = Math.max(0, S.auditQ.page + Number(id)); admAudit(); break;
   }
 });
 window.addEventListener('online', () => { S.online = true; renderStatus(); flush(); if (S.token) refresh().then(() => renderMain()).catch(() => {}); });
 window.addEventListener('offline', () => { S.online = false; renderStatus(); });
+window.addEventListener('resize', debounce(() => { if (!S.user || $('#overlay')) return; if (S.view.kind === 'tab' && !S.layout) renderList(); }, 200));
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) { flush(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
-
-/* ----------------------------- splash screen (index.html #splash) ----------------------------- */
-function hideSplash() {
-  const sp = document.getElementById('splash'); if (!sp || sp._h) return; sp._h = 1;
-  setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 700); }, Math.max(0, 600 - (Date.now() - (window.__t0 || 0))));
-}
-setTimeout(hideSplash, 8000); // safety net: never leave the splash up forever
 
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
