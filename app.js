@@ -73,9 +73,9 @@ const I18N = {
 };
 const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', date: 'Date', datetime: 'Date & time', select: 'Dropdown', multiselect: 'Multi-select', checkbox: 'Checkbox', phone: 'Phone', email: 'Email', file: 'File upload', calc: 'Calculated' },
   ar: { text: 'نص', longtext: 'نص طويل', number: 'رقم', date: 'تاريخ', datetime: 'تاريخ ووقت', select: 'قائمة', multiselect: 'اختيار متعدد', checkbox: 'مربع اختيار', phone: 'هاتف', email: 'بريد', file: 'رفع ملف', calc: 'محسوب' } };
-const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create'];
+const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create', 'tab_update'];
 
-const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'dash', tab: null, admin: 'overview' },
+const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
   online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null };
 const t = (k, ...a) => { const v = (I18N[S.lang] || I18N.en)[k] ?? I18N.en[k] ?? k; return typeof v === 'function' ? v(...a) : v; };
 const fl = f => (S.lang === 'ar' && f.ar) ? f.ar : f.label;
@@ -118,11 +118,123 @@ function cond(expr, data) {
   const hit = (Array.isArray(v) ? v.map(String) : [String(v ?? '')]).some(x => want.includes(x));
   return m[2] === '!=' ? !hit : hit;
 }
-function calcVal(expr, data) {
+/* Safe formula engine (same code in app.js and Code.gs). Supports + - * / % ( ), comparisons, dates and functions:
+   DAYS(end,start) MONTHS(end,start) YEARS(end,start) ADDDAYS(date,n) ADDMONTHS(date,n) TODAY()
+   ROUND(x,n) ABS MIN MAX SUM AVG IF(cond,a,b) AND OR NOT CONCAT */
+function calcVal(expr, data, cols) {
+  const DAY = 86400000, DRE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
   try {
-    const s = String(expr).replace(/\{([^}]+)\}|[A-Za-z_]\w*/g, (m0, k) => String(Number(data[(k || m0).trim()]) || 0));
-    if (!/^[0-9+\-*/().\s%]*$/.test(s)) return '';
-    const r = Function('"use strict";return (' + s + ')')(); return isFinite(r) ? Math.round(r * 100) / 100 : '';
+    const s = String(expr == null ? '' : expr).replace(/^\s*=/, ''), T = []; let i = 0, m;
+    while (i < s.length) {
+      const c = s[i], rest = s.slice(i);
+      if (/\s/.test(c)) { i++; continue; }
+      if ((m = /^(\d+\.?\d*|\.\d+)/.exec(rest))) { T.push({ t: 'n', v: parseFloat(m[1]) }); i += m[1].length; }
+      else if (c === '{') { const j = s.indexOf('}', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
+      else if (c === '[') { const j = s.indexOf(']', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
+      else if (c === '"' || c === "'") { const j = s.indexOf(c, i + 1); if (j < 0) return ''; T.push({ t: 's', v: s.slice(i + 1, j) }); i = j + 1; }
+      else if ((m = /^[A-Za-z_]\w*/.exec(rest))) { T.push({ t: 'i', v: m[0] }); i += m[0].length; }
+      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%^&:(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
+      else return '';
+    }
+    let p = 0;
+    const isD = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+    const num = v => Array.isArray(v) ? NaN : v == null ? 0 : isD(v) ? v.d : typeof v === 'number' ? v : (v === '' || isNaN(Number(v)) ? NaN : Number(v));
+    const ref = k => {
+      const v = data[k]; if (v === undefined || v === null || v === '') return null;
+      if (typeof v === 'number') return v; if (typeof v === 'boolean') return v ? 1 : 0; if (Array.isArray(v)) return v.join(', ');
+      const str = String(v), d = DRE.exec(str);
+      if (d) return { d: Date.UTC(+d[1], +d[2] - 1, +d[3], +(d[4] || 0), +(d[5] || 0)) / DAY };
+      const e = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/.exec(str.trim());
+      if (e && +e[2] >= 1 && +e[2] <= 12 && +e[1] >= 1 && new Date(Date.UTC(+e[3], +e[2] - 1, +e[1])).getUTCMonth() === +e[2] - 1) return { d: Date.UTC(+e[3], +e[2] - 1, +e[1], +(e[4] || 0), +(e[5] || 0)) / DAY };
+      return str.trim() !== '' && !isNaN(Number(str)) ? Number(str) : str;
+    };
+    const colIdx = k => { const m = /^([A-Za-z]{1,2})\d*$/.exec(k); if (!m || !cols) return -1; let n = 0; m[1].toUpperCase().split('').forEach(ch => { n = n * 26 + ch.charCodeAt(0) - 64; }); return n - 1; };
+    const nameRef = k => { if (Object.prototype.hasOwnProperty.call(data, k)) return ref(k); const i = colIdx(k); return i >= 0 && cols[i] !== undefined ? ref(cols[i]) : ref(k); };
+    const ymd = v => new Date(Math.round(v.d * DAY));
+    const addM = (v, n) => { const dt = ymd(v), y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + Math.trunc(n), last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate(); return { d: Date.UTC(y, mo, Math.min(dt.getUTCDate(), last), dt.getUTCHours(), dt.getUTCMinutes()) / DAY }; };
+    const months = (a, b) => { const x = ymd(a), y = ymd(b); let n = (x.getUTCFullYear() - y.getUTCFullYear()) * 12 + x.getUTCMonth() - y.getUTCMonth(); if (n > 0 && x.getUTCDate() < y.getUTCDate()) n--; if (n < 0 && x.getUTCDate() > y.getUTCDate()) n++; return n; };
+    const must = v => { if (!isD(v)) throw 0; return v; };
+    const nn = v => { const x = num(v); if (isNaN(x)) throw 0; return x; };
+    const arith = (op, a, b) => {
+      const ad = isD(a), bd = isD(b);
+      if ((ad || bd) && (a == null || b == null)) return null;
+      if (op === '+') { if (ad && bd) throw 0; if (ad) return { d: a.d + nn(b) }; if (bd) return { d: b.d + nn(a) }; return nn(a) + nn(b); }
+      if (op === '-') { if (ad && bd) return a.d - b.d; if (ad) return { d: a.d - nn(b) }; if (bd) throw 0; return nn(a) - nn(b); }
+      if (ad || bd) throw 0;
+      const x = nn(a), y = nn(b); return op === '*' ? x * y : op === '/' ? x / y : x % y;
+    };
+    const cmp = (op, a, b) => {
+      let x = isD(a) ? a.d : a, y = isD(b) ? b.d : b;
+      if (typeof x === 'string' || typeof y === 'string') { x = String(x == null ? '' : x).toLowerCase(); y = String(y == null ? '' : y).toLowerCase(); } else { x = x == null ? 0 : x; y = y == null ? 0 : y; }
+      return (op === '<' ? x < y : op === '>' ? x > y : op === '<=' ? x <= y : op === '>=' ? x >= y : (op === '=' || op === '==') ? x === y : x !== y) ? 1 : 0;
+    };
+    const truthy = v => v != null && v !== 0 && v !== '' && v !== false;
+    const nums = a => a.filter(v => v != null).map(nn);
+    const FN = {
+      TODAY: () => ({ d: Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY) }),
+      DAYS: a => a[0] == null || a[1] == null ? null : must(a[0]).d - must(a[1]).d,
+      MONTHS: a => a[0] == null || a[1] == null ? null : months(must(a[0]), must(a[1])),
+      YEARS: a => { if (a[0] == null || a[1] == null) return null; const n = months(must(a[0]), must(a[1])); return Math.trunc(n / 12); },
+      ADDDAYS: a => a[0] == null ? null : { d: must(a[0]).d + nn(a[1]) },
+      ADDMONTHS: a => a[0] == null ? null : addM(must(a[0]), nn(a[1])),
+      ROUND: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.round(nn(a[0]) * k) / k; },
+      ABS: a => Math.abs(nn(a[0])),
+      MIN: a => { const x = nums(a); return x.length ? Math.min.apply(null, x) : null; },
+      MAX: a => { const x = nums(a); return x.length ? Math.max.apply(null, x) : null; },
+      SUM: a => nums(a).reduce((s, v) => s + v, 0),
+      AVG: a => { const x = nums(a); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; },
+      IF: a => truthy(a[0]) ? (a[1] === undefined ? null : a[1]) : (a[2] === undefined ? null : a[2]),
+      AND: a => a.every(truthy) ? 1 : 0, OR: a => a.some(truthy) ? 1 : 0, NOT: a => truthy(a[0]) ? 0 : 1,
+      NOW: () => FN.TODAY(),
+      DATEDIF: a => { if (a[0] == null || a[1] == null) return null; const u = String(a[2] == null ? 'd' : a[2]).toLowerCase(); if (u === 'd') return must(a[1]).d - must(a[0]).d; const n = months(must(a[1]), must(a[0])); return u === 'm' ? n : u === 'y' ? Math.trunc(n / 12) : (() => { throw 0; })(); },
+      EDATE: a => a[0] == null ? null : addM(must(a[0]), nn(a[1])),
+      EOMONTH: a => { if (a[0] == null) return null; const dt = ymd(must(a[0])); return { d: Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1 + Math.trunc(nn(a[1])), 0) / DAY }; },
+      YEAR: a => a[0] == null ? null : ymd(must(a[0])).getUTCFullYear(),
+      MONTH: a => a[0] == null ? null : ymd(must(a[0])).getUTCMonth() + 1,
+      DAY: a => a[0] == null ? null : ymd(must(a[0])).getUTCDate(),
+      INT: a => Math.floor(nn(a[0])), MOD: a => nn(a[0]) % nn(a[1]), POWER: a => Math.pow(nn(a[0]), nn(a[1])), SQRT: a => Math.sqrt(nn(a[0])),
+      ROUNDUP: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.ceil(nn(a[0]) * k) / k; },
+      ROUNDDOWN: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.trunc(nn(a[0]) * k) / k; },
+      IFERROR: a => typeof a[0] === 'number' && !isFinite(a[0]) ? (a[1] === undefined ? null : a[1]) : a[0],
+      ISBLANK: a => a[0] == null || a[0] === '' ? 1 : 0,
+      LEN: a => FN.CONCAT([a[0]]).length, UPPER: a => FN.CONCAT([a[0]]).toUpperCase(), LOWER: a => FN.CONCAT([a[0]]).toLowerCase(), TRIM: a => FN.CONCAT([a[0]]).trim(),
+      LEFT: a => FN.CONCAT([a[0]]).slice(0, a.length > 1 ? nn(a[1]) : 1), RIGHT: a => { const s = FN.CONCAT([a[0]]), n = a.length > 1 ? nn(a[1]) : 1; return n <= 0 ? '' : s.slice(-n); },
+      CONCAT: a => a.map(v => isD(v) ? toStr(v) : v == null ? '' : String(v)).join('')
+    };
+    const toStr = v => { const dt = ymd(v), z = n => (n < 10 ? '0' : '') + n, base = dt.getUTCFullYear() + '-' + z(dt.getUTCMonth() + 1) + '-' + z(dt.getUTCDate()); return Number.isInteger(v.d) ? base : base + 'T' + z(dt.getUTCHours()) + ':' + z(dt.getUTCMinutes()); };
+    const peek = v => T[p] && T[p].t === 'o' && T[p].v === v;
+    const expr0 = () => {
+      let a = cat();
+      while (T[p] && T[p].t === 'o' && ['<', '>', '<=', '>=', '=', '==', '!=', '<>'].indexOf(T[p].v) >= 0) { const op = T[p++].v; a = cmp(op, a, cat()); }
+      return a;
+    };
+    const cat = () => { let a = add(); while (peek('&')) { p++; const b = add(); a = FN.CONCAT([a, b]); } return a; };
+    const add = () => { let a = mul(); while (peek('+') || peek('-')) { const op = T[p++].v; a = arith(op, a, mul()); } return a; };
+    const mul = () => { let a = pw(); while (peek('*') || peek('/') || peek('%')) { const op = T[p++].v; a = arith(op, a, pw()); } return a; };
+    const pw = () => { let a = un(); while (peek('^')) { p++; const b = un(); a = a == null || b == null ? null : Math.pow(nn(a), nn(b)); } return a; };
+    const un = () => { if (peek('-')) { p++; const v = un(); return v == null ? null : -nn(v); } if (peek('+')) { p++; return un(); } return prim(); };
+    const prim = () => {
+      const k = T[p++]; if (!k) throw 0;
+      if (k.t === 'n') return k.v;
+      if (k.t === 's') { const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k.v); return dm ? { d: Date.UTC(+dm[1], +dm[2] - 1, +dm[3]) / DAY } : k.v; }
+      if (k.t === 'r') return ref(k.v);
+      if (k.t === 'o' && k.v === '(') { const v = expr0(); if (!peek(')')) throw 0; p++; return v; }
+      if (k.t === 'i') {
+        if (peek('(')) {
+          p++; const args = [];
+          if (peek(')')) p++; else { for (;;) { args.push(expr0()); if (peek(',')) { p++; continue; } if (peek(')')) { p++; break; } throw 0; } }
+          const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args.reduce((acc, x) => acc.concat(Array.isArray(x) ? x : [x]), []));
+        }
+        const U = k.v.toUpperCase();
+        if ((U === 'TRUE' || U === 'FALSE') && !(k.v in data)) return U === 'TRUE' ? 1 : 0;
+        if (peek(':')) { p++; const e2 = T[p++]; if (!e2 || e2.t !== 'i') throw 0; const a = colIdx(k.v), b = colIdx(e2.v); if (a < 0 || b < 0 || !cols) throw 0; const out = []; for (let x = Math.min(a, b); x <= Math.max(a, b); x++) if (cols[x] !== undefined) out.push(ref(cols[x])); return out; }
+        return nameRef(k.v);
+      }
+      throw 0;
+    };
+    let r = expr0(); if (p < T.length) return '';
+    if (r == null || Array.isArray(r)) return ''; if (isD(r)) return toStr(r); if (typeof r === 'string') return r;
+    return isFinite(r) ? Math.round(r * 100) / 100 : '';
   } catch (e) { return ''; }
 }
 const schemaOf = tab => S.tabs.find(x => x.name === tab);
@@ -130,7 +242,7 @@ const vf = sc => sc.fields.filter(f => !f.hidden);
 const canR = (sc, r) => (sc.rights || '').includes(r);
 const blank = f => f.type === 'checkbox' ? false : (f.type === 'multiselect' || f.type === 'file') ? [] : '';
 const blankDraft = sc => Object.fromEntries(sc.fields.map(f => [f.key, blank(f)]));
-function recalc(sc, d) { sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d); }); }
+function recalc(sc, d) { const ck = sc.fields.map(f => f.key); sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d, ck); }); }
 const isEmpty = v => v === '' || v == null || (Array.isArray(v) && !v.length);
 function fieldError(sc, f, d) {
   if (f.showIf && !cond(f.showIf, d)) return '';
@@ -148,7 +260,8 @@ function displayVal(f, v) {
     case 'file': return '📎 ' + v.length;
     case 'checkbox': return v ? '✓' : '—';
     case 'multiselect': return v.join(', ');
-    case 'number': case 'calc': return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
+    case 'number': return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
+    case 'calc': if (typeof v === 'string' && isNaN(Number(v))) return /^\d{4}-\d{2}-\d{2}$/.test(v) ? displayVal({ type: 'date' }, v) : v; return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
     case 'date': try { return new Date(v + 'T00:00').toLocaleDateString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium' }); } catch (e) { return v; }
     case 'datetime': try { return new Date(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return v; }
     default: return String(v);
@@ -423,6 +536,7 @@ async function refresh() {
 
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
+  hideSplash();
   closeSheet(true);
   $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
@@ -459,11 +573,11 @@ async function onLogin(e) {
 /* ----------------------------- shell ----------------------------- */
 function navItems() {
   const items = S.tabs.map(tb => ({ id: 'tab:' + tb.name, em: tb.icon || '📄', label: tl(tb), on: S.view.kind === 'tab' && S.view.tab === tb.name }));
-  items.unshift({ id: 'dash', em: '📊', label: t('dxTitle'), on: S.view.kind === 'dash' });
   if (S.user.role === 'admin') items.push({ id: 'admin', em: '🛡️', label: t('admin'), on: S.view.kind === 'admin' });
   return items;
 }
 function renderApp() {
+  hideSplash();
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
@@ -486,7 +600,6 @@ function renderBell() { const n = $('#bellN'); if (!n) return; n.innerHTML = S.a
 function renderMain() {
   clearInterval(S.adminTimer);
   if (S.view.kind === 'admin' && S.user.role === 'admin') { $('#hdTitle').textContent = '🛡️ ' + t('admin'); $('#fab').style.display = 'none'; renderAdmin(); }
-  else if (S.view.kind === 'dash') renderDash();
   else { S.view.kind = 'tab'; renderTabShell(); }
 }
 
@@ -498,7 +611,6 @@ function renderTabShell() {
   const sel = vf(sc).find(f => f.type === 'select' && f.options?.length); const lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards');
   main.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px"><div style="position:relative;flex:1"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)">${ic('search')}</span>
       <input id="q" class="inp" style="padding-inline-start:42px" placeholder="${esc(t('search'))}" autocomplete="off" value="${esc(S.search)}"><div id="sugg" class="sugg glass" style="display:none"></div></div>
-      <button class="btn icon" data-act="xl_tab" title="${esc(t('dxExport'))}">${ic('download')}</button>
       <button class="btn icon" data-act="layout" title="layout">${ic(lay === 'table' ? 'grid' : 'list')}</button></div>
     ${sel ? `<div class="chips" id="fchips" style="margin-bottom:14px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px"><button class="chip ${!S.filter[sc.name] ? 'on' : ''}" data-f="">${esc(t('all'))}</button>${sel.options.map(o => `<button class="chip ${S.filter[sc.name] === o ? 'on' : ''}" data-f="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}
     <div id="list"></div>`;
@@ -824,31 +936,100 @@ function openUserForm(username) {
 async function admTabs() {
   const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
   try {
-    const r = await api('admin_tabs');
-    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><b>${tb.icon} ${esc(tb.label)}</b> ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
+    const r = await api('admin_tabs'); S.admTabs = r.tabs;
+    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>${tb.icon} ${esc(tb.label)}</b> ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}</div><button class="btn" data-act="tab_edit" data-id="${esc(tb.name)}">✏️ ${esc(S.lang === 'ar' ? 'تعديل' : 'Edit')}</button></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge" ${f.calc ? `title="${esc(f.calc)}"` : ''} style="${f.hidden ? 'opacity:.5' : ''}">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
   } catch (e) { adminErr(e); }
 }
-function openTabBuilder() {
-  const rows = [{ label: '', ar: '', type: 'text', req: false, options: '' }];
+function openTabBuilder(tabName) {
+  const L = (en, ar) => S.lang === 'ar' ? ar : en;
+  const edit = tabName ? (S.admTabs || []).find(x => x.name === tabName) : null;
+  const newRow = () => ({ orig: '', label: '', ar: '', type: 'text', req: false, options: '' });
+  const rows = edit ? edit.fields.map(f => ({ orig: f.key, label: f.label, ar: f.ar || '', type: f.type, req: !!f.req, readonly: !!f.readonly, hidden: !!f.hidden, options: f.lookup ? '' : (f.options || []).join(', '), calc: f.calc || '', showIf: f.showIf || '', reqIf: f.reqIf || '', lookup: f.lookup || '', maxMB: f.maxMB ?? '', maxFiles: f.maxFiles ?? '', min: f.min ?? '', max: f.max ?? '' })) : [newRow()];
   const TYPES = Object.keys(T_TYPES.en);
-  const o = openSheet(`<div class="hd"><h3>${esc(t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="📄" style="text-align:center"></div></div>
+  const QOPS = {
+    days: [L('Days between two dates', 'عدد الأيام بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "d")`],
+    months: [L('Months between two dates', 'عدد الشهور بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "m")`],
+    years: [L('Years between two dates (age)', 'عدد السنين بين تاريخين (العمر)'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "y")`],
+    adddays: [L('Add days to a date', 'إضافة أيام لتاريخ'), L('Date', 'التاريخ'), L('Days', 'عدد الأيام'), (a, b) => `ADDDAYS(${a}, ${b})`],
+    addmonths: [L('Add months to a date', 'إضافة شهور لتاريخ'), L('Date', 'التاريخ'), L('Months', 'عدد الشهور'), (a, b) => `EDATE(${a}, ${b})`],
+    add: [L('Add (first + second)', 'جمع (الأول + الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} + ${b}`],
+    sub: [L('Subtract (first − second)', 'طرح (الأول − الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} - ${b}`],
+    mul: [L('Multiply (first × second)', 'ضرب (الأول × الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} * ${b}`],
+    div: [L('Divide (first ÷ second)', 'قسمة (الأول ÷ الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} / ${b}`],
+    pct: [L('Percentage (first × second%)', 'نسبة مئوية (الأول × الثاني%)'), L('Amount', 'المبلغ'), L('Percent', 'النسبة'), (a, b) => `${a} * ${b} / 100`]
+  };
+  const FNS = [['DATEDIF', L('DATEDIF (start, end, "d"/"m"/"y")', 'DATEDIF فرق تاريخين (البداية، النهاية، "d"/"m"/"y")')], ['DAYS', L('DAYS (end, start)', 'DAYS أيام بين تاريخين (النهاية، البداية)')], ['TODAY', L('TODAY', 'TODAY تاريخ اليوم')], ['EDATE', L('EDATE (date, months)', 'EDATE إضافة شهور (التاريخ، عدد)')], ['ADDDAYS', L('ADDDAYS (date, days)', 'ADDDAYS إضافة أيام (التاريخ، عدد)')], ['EOMONTH', L('EOMONTH (date, months)', 'EOMONTH آخر يوم في الشهر')], ['YEAR', L('YEAR', 'YEAR السنة')], ['MONTH', L('MONTH', 'MONTH الشهر')], ['DAY', L('DAY', 'DAY اليوم')], ['IF', L('IF (test, yes, no)', 'IF لو (الشرط، نعم، لا)')], ['IFERROR', L('IFERROR (x, instead)', 'IFERROR لو في خطأ')], ['AND', 'AND'], ['OR', 'OR'], ['SUM', L('SUM', 'SUM مجموع')], ['AVG', L('AVG (average)', 'AVG متوسط')], ['MIN', 'MIN'], ['MAX', 'MAX'], ['ROUND', L('ROUND (x, digits)', 'ROUND تقريب')], ['ROUNDUP', 'ROUNDUP'], ['ROUNDDOWN', 'ROUNDDOWN'], ['INT', 'INT'], ['MOD', L('MOD (x, y)', 'MOD باقي القسمة')], ['ABS', 'ABS'], ['CONCAT', L('CONCAT (join text)', 'CONCAT دمج نصوص')], ['LEFT', 'LEFT'], ['RIGHT', 'RIGHT'], ['LEN', 'LEN'], ['UPPER', 'UPPER'], ['LOWER', 'LOWER'], ['TRIM', 'TRIM']];
+  const o = openSheet(`<div class="hd"><h3>${esc(edit ? L('Edit tab', 'تعديل الصفحة') : t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name" value="${esc(edit ? edit.label : '')}"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar" value="${esc(edit ? edit.ar || '' : '')}"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="${esc(edit ? edit.icon || '📄' : '📄')}" style="text-align:center"></div></div>
+    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Formulas work like Excel: start with =, use column names, [Column Name], or column letters like D2 (the 4th column). Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
     <label class="lab">${esc(t('fields'))}</label><div id="b_rows"></div><button class="btn" data-b="add" style="width:100%;margin:6px 0 14px">${ic('plus')} ${esc(t('addField'))}</button><button class="btn primary" data-b="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`, { wide: true });
-  const draw = () => { $('#b_rows', o).innerHTML = rows.map((r, i) => `<div class="card" style="margin-bottom:8px;padding:10px" data-i="${i}"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input class="inp" data-p="label" placeholder="${esc(t('label'))}" value="${esc(r.label)}"><input class="inp" data-p="ar" placeholder="${esc(t('labelAr'))}" value="${esc(r.ar)}"><select class="inp" data-p="type">${TYPES.map(x => `<option value="${x}" ${r.type === x ? 'selected' : ''}>${esc(typeName(x))}</option>`).join('')}</select>
-    <div style="display:flex;align-items:center;gap:8px"><label class="chip ${r.req ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="req" ${r.req ? 'checked' : ''}>${esc(t('required'))}</label><button class="btn icon danger" data-rm="${i}">${ic('trash')}</button></div></div>
-    ${['select', 'multiselect'].includes(r.type) ? `<input class="inp" style="margin-top:8px" data-p="options" placeholder="${esc(t('options'))}" value="${esc(r.options)}">` : ''}${r.type === 'calc' ? `<input class="inp" style="margin-top:8px" data-p="calc" dir="ltr" placeholder="{Qty}*{Price}" value="${esc(r.calc || '')}">` : ''}${r.type === 'file' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="maxMB" placeholder="max MB" value="${esc(r.maxMB || '')}"><input class="inp" type="number" data-p="maxFiles" placeholder="max files" value="${esc(r.maxFiles || '')}"></div>` : ''}
-    <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${esc(t('advanced'))}</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" data-p="showIf" dir="ltr" placeholder="showIf: Status=Hired" value="${esc(r.showIf || '')}"><input class="inp" data-p="reqIf" dir="ltr" placeholder="reqIf: Status=Hired" value="${esc(r.reqIf || '')}"><input class="inp" data-p="lookup" dir="ltr" placeholder="lookup: Clients.Company" value="${esc(r.lookup || '')}"></div></details></div>`).join(''); };
+
+  const prevCols = i => rows.slice(0, i).filter(r => r.label.trim() && r.type !== 'file').map(r => r.label.trim());
+  const fillCols = sel => { const cur = sel.value, i = +sel.closest('[data-i]').dataset.i; sel.innerHTML = `<option value="">${esc(sel.dataset.ph || '—')}</option>${sel.dataset.today ? `<option value="__today">📅 ${esc(L('Today', 'اليوم'))}</option>` : ''}${prevCols(i).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}`; sel.value = cur; };
+  const sample = mode => { const d = {}, ck = rows.filter(r => r.label.trim()).map(r => r.label.trim()); rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; const txt = r.type === 'text' || r.type === 'longtext' || r.type === 'phone' || r.type === 'email' || r.type === 'select'; const dt = new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10); d[key] = r.type === 'date' ? dt : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d, ck) : r.type === 'checkbox' ? 1 : txt && mode === 'date' ? dt : txt && mode === 'num' ? 10 + k : 'abc'; }); return d; };
+  const prevCalc = i => {
+    const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; }
+    const ck = rows.filter(x => x.label.trim()).map(x => x.label.trim()); let v = '', used = '';
+    for (const mode of ['', 'date', 'num']) { v = calcVal(r.calc, sample(mode), ck); if (v !== '') { used = mode; break; } }
+    el.style.color = v === '' ? 'var(--err)' : 'var(--ok)';
+    el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v + (used ? L('  (works if the text columns hold ' + (used === 'date' ? 'dates' : 'numbers') + ')', '  (شغالة لو أعمدة النص فيها ' + (used === 'date' ? 'تواريخ' : 'أرقام') + ')') : '');
+  };
+  const ins = (inp, txt, back = 0) => { const a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a; inp.value = inp.value.slice(0, a) + txt + inp.value.slice(z); const pos = a + txt.length - back; inp.focus(); inp.setSelectionRange(pos, pos); inp.dispatchEvent(new Event('input', { bubbles: true })); };
+  const calcBox = (r, i) => `<div style="margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--line,#475569)">
+      <input class="inp" data-p="calc" dir="ltr" placeholder="=Qty*Price    |    =D2-E2    |    =DATEDIF(Start, End, &quot;d&quot;)    |    =[Total Fee]*2" value="${esc(r.calc || '')}">
+      <div data-prev class="muted" style="font-size:12px;margin:6px 0"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <select class="inp" data-cols data-ins style="flex:1;min-width:130px" data-ph="${esc(L('＋ Column…', '＋ أدخل عمود…'))}"></select>
+        ${[['+', '+'], ['-', '−'], ['*', '×'], ['/', '÷'], ['^', '^'], ['&', '&'], ['(', '('], [')', ')']].map(([v, s]) => `<button type="button" class="btn" data-op="${v}" style="min-width:38px">${s}</button>`).join('')}
+        <select class="inp" data-fn style="flex:1;min-width:130px"><option value="">${esc(L('＋ Function…', '＋ دالة…'))}</option>${FNS.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>
+      </div>
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px;font-weight:600">${esc(L('⚡ Quick helper — no typing', '⚡ مساعد سريع — من غير كتابة'))}</summary>
+        <div style="display:grid;gap:8px;margin-top:8px">
+          <select class="inp" data-q="op">${Object.entries(QOPS).map(([k, v]) => `<option value="${k}">${esc(v[0])}</option>`).join('')}</select>
+          <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;align-items:center"><span class="muted" data-ql="a" style="grid-column:1/3;font-size:12px"></span><select class="inp" data-cols data-q="a" data-today="1" data-ph="${esc(L('Pick column', 'اختر عمود'))}"></select><input class="inp" data-q="an" inputmode="decimal" dir="ltr" placeholder="${esc(L('or #', 'أو رقم'))}"></div>
+          <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;align-items:center"><span class="muted" data-ql="b" style="grid-column:1/3;font-size:12px"></span><select class="inp" data-cols data-q="b" data-today="1" data-ph="${esc(L('Pick column', 'اختر عمود'))}"></select><input class="inp" data-q="bn" inputmode="decimal" dir="ltr" placeholder="${esc(L('or #', 'أو رقم'))}"></div>
+          <button type="button" class="btn primary" data-qgo>${esc(L('Build formula', 'اعمل الصيغة'))}</button>
+        </div></details></div>`;
+  const draw = () => {
+    $('#b_rows', o).innerHTML = rows.map((r, i) => `<div class="card" style="margin-bottom:8px;padding:10px;${r.hidden ? 'opacity:.55' : ''}" data-i="${i}"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input class="inp" data-p="label" placeholder="${esc(t('label'))}" value="${esc(r.label)}"><input class="inp" data-p="ar" placeholder="${esc(t('labelAr'))}" value="${esc(r.ar)}"><select class="inp" data-p="type">${TYPES.map(x => `<option value="${x}" ${r.type === x ? 'selected' : ''}>${esc(typeName(x))}</option>`).join('')}</select>
+    <div style="display:flex;align-items:center;gap:8px"><label class="chip ${r.req ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="req" ${r.req ? 'checked' : ''}>${esc(t('required'))}</label>${r.orig ? `<label class="chip ${r.hidden ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="hidden" ${r.hidden ? 'checked' : ''}>${esc(L('Hide', 'إخفاء'))}</label>` : `<button class="btn icon danger" data-rm="${i}">${ic('trash')}</button>`}</div></div>
+    ${['select', 'multiselect'].includes(r.type) ? `<input class="inp" style="margin-top:8px" data-p="options" placeholder="${esc(t('options'))}" value="${esc(r.options)}">` : ''}${r.type === 'calc' ? calcBox(r, i) : ''}${r.type === 'number' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="min" placeholder="min" value="${esc(r.min ?? '')}"><input class="inp" type="number" data-p="max" placeholder="max" value="${esc(r.max ?? '')}"></div>` : ''}${r.type === 'file' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="maxMB" placeholder="max MB" value="${esc(r.maxMB || '')}"><input class="inp" type="number" data-p="maxFiles" placeholder="max files" value="${esc(r.maxFiles || '')}"></div>` : ''}
+    <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${esc(t('advanced'))}</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" data-p="showIf" dir="ltr" placeholder="showIf: Status=Hired" value="${esc(r.showIf || '')}"><input class="inp" data-p="reqIf" dir="ltr" placeholder="reqIf: Status=Hired" value="${esc(r.reqIf || '')}"><input class="inp" data-p="lookup" dir="ltr" placeholder="lookup: Clients.Company" value="${esc(r.lookup || '')}"><label class="chip ${r.readonly ? 'on' : ''}" style="text-align:center"><input type="checkbox" hidden data-p="readonly" ${r.readonly ? 'checked' : ''}>${esc(L('Read-only', 'قراءة فقط'))}</label></div></details></div>`).join('');
+    $$('[data-cols]', o).forEach(fillCols); $$('[data-q="op"]', o).forEach(s => qLabels(s));
+    rows.forEach((r, i) => { if (r.type === 'calc') prevCalc(i); });
+  };
+  const qLabels = sel => { const box = sel.closest('[data-i]'), q = QOPS[sel.value]; $('[data-ql="a"]', box).textContent = q[1]; $('[data-ql="b"]', box).textContent = q[2]; };
   draw();
-  o.addEventListener('input', e => { const p = e.target.dataset.p; if (!p) return; const i = +e.target.closest('[data-i]').dataset.i; rows[i][p] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; });
-  o.addEventListener('change', e => { const p = e.target.dataset.p; if (p === 'type' || p === 'req') draw(); });
+  o.addEventListener('focusin', e => { if (e.target.matches('[data-cols]')) fillCols(e.target); });
+  o.addEventListener('input', e => { const p = e.target.dataset.p; if (!p) return; const i = +e.target.closest('[data-i]').dataset.i; rows[i][p] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; if (p === 'calc' || p === 'label' || p === 'type') rows.forEach((r, k) => { if (r.type === 'calc') prevCalc(k); }); });
+  o.addEventListener('change', e => {
+    const d = e.target.dataset, p = d.p, box = e.target.closest('[data-i]');
+    if (d.ins !== undefined) { if (e.target.value) ins($('[data-p="calc"]', box), `{${e.target.value}}`); e.target.value = ''; return; }
+    if (d.fn !== undefined) { const f = e.target.value; if (f) ins($('[data-p="calc"]', box), f + '()', 1); e.target.value = ''; return; }
+    if (d.q === 'op') return qLabels(e.target);
+    if (p === 'type' || p === 'req' || p === 'hidden' || p === 'readonly') draw();
+  });
   o.addEventListener('click', async e => {
+    const op = e.target.closest('[data-op]');
+    if (op) { ins($('[data-p="calc"]', op.closest('[data-i]')), op.dataset.op); return; }
+    const go = e.target.closest('[data-qgo]');
+    if (go) {
+      const box = go.closest('[data-i]'), q = k => $(`[data-q="${k}"]`, box);
+      const val = k => { const n = q(k + 'n').value.trim(); if (n !== '') return isNaN(Number(n)) ? '' : n; const c = q(k).value; return c === '__today' ? 'TODAY()' : c ? `{${c}}` : ''; };
+      const a = val('a'), b = val('b');
+      if (!a || !b) return toast(L('Pick both values (a column, Today, or a number)', 'اختار القيمتين (عمود أو اليوم أو رقم)'), 'err');
+      const inp = $('[data-p="calc"]', box); inp.value = QOPS[q('op').value][3](a, b); inp.dispatchEvent(new Event('input', { bubbles: true })); return;
+    }
     const b = e.target.closest('[data-b]'), rm = e.target.closest('[data-rm]');
-    if (rm) { rows.splice(+rm.dataset.rm, 1); if (!rows.length) rows.push({ label: '', ar: '', type: 'text', options: '' }); return draw(); }
-    if (!b) return; if (b.dataset.b === 'x') return closeSheet(); if (b.dataset.b === 'add') { rows.push({ label: '', ar: '', type: 'text', options: '' }); draw(); return; }
+    if (rm) { rows.splice(+rm.dataset.rm, 1); if (!rows.length) rows.push(newRow()); return draw(); }
+    if (!b) return; if (b.dataset.b === 'x') return closeSheet(); if (b.dataset.b === 'add') { rows.push(newRow()); draw(); return; }
     b.disabled = true;
     try {
-      await api('admin_createTab', { name: $('#b_name', o).value.trim(), label: $('#b_name', o).value.trim(), ar: $('#b_ar', o).value.trim(), icon: $('#b_icon', o).value.trim() || '📄', fields: rows.map(r => ({ ...r, options: r.options ? r.options.split(',').map(s => s.trim()).filter(Boolean) : [] })) });
-      toast(t('tabCreated')); closeSheet(true); await refresh(); renderApp(); S.view = { kind: 'admin', tab: S.view.tab, admin: 'tabs' }; renderApp();
+      const fields = rows.filter(r => r.label.trim()).map(r => ({ ...r, options: r.options ? r.options.split(',').map(s => s.trim()).filter(Boolean) : [] }));
+      const head = { label: $('#b_name', o).value.trim(), ar: $('#b_ar', o).value.trim(), icon: $('#b_icon', o).value.trim() || '📄', fields };
+      if (edit) { await api('admin_updateTab', { name: edit.name, ...head }); toast(L('Tab updated', 'تم تحديث الصفحة')); }
+      else { await api('admin_createTab', { name: head.label, ...head }); toast(t('tabCreated')); }
+      closeSheet(true); await refresh(); renderApp(); S.view = { kind: 'admin', tab: S.view.tab, admin: 'tabs' }; renderApp();
     } catch (er) { b.disabled = false; adminErr(er); }
   });
 }
@@ -863,7 +1044,7 @@ document.addEventListener('click', async e => {
   switch (a) {
     case 'sync': syncNow(); break; case 'syncinfo': openSyncInfo(); break;
     case 'theme': toggleTheme(); break; case 'lang': toggleLang(); break; case 'logout': logout(); break;
-    case 'nav': S.view = id === 'dash' ? { ...S.view, kind: 'dash' } : id === 'admin' ? { ...S.view, kind: 'admin' } : { ...S.view, kind: 'tab', tab: id.slice(4) }; S.search = ''; S.limit = CONFIG.PAGE; renderApp(); break;
+    case 'nav': S.view = id === 'admin' ? { ...S.view, kind: 'admin' } : { ...S.view, kind: 'tab', tab: id.slice(4) }; S.search = ''; S.limit = CONFIG.PAGE; renderApp(); break;
     case 'add': { const sc = schemaOf(S.view.tab); if (!sc) break; if (innerWidth < 768) openChat(sc.name); else openNewFormWith(sc.name, blankDraft(sc), uid()); break; }
     case 'open': { const sg = $('#sugg'); if (sg) sg.style.display = 'none'; openRecord(id); break; }
     case 'more': S.limit += CONFIG.PAGE; renderList(); break;
@@ -872,7 +1053,7 @@ document.addEventListener('click', async e => {
     case 'adm': S.view.admin = id; renderApp(); break;
     case 'ack': try { await api('admin_ackAlert', { id }); admOverview(); } catch (er) { adminErr(er); } break;
     case 'unlock': try { await api('admin_userAction', { username: id, op: 'unlock' }); toast(t('unlock') + ' ✓'); admOverview(); } catch (er) { adminErr(er); } break;
-    case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break;
+    case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break; case 'tab_edit': openTabBuilder(id); break;
     case 'aq_apply': S.auditQ = { page: 0, filters: { user: $('#aq_user').value, tab: $('#aq_tab').value, action: $('#aq_action').value, text: $('#aq_text').value.trim(), from: $('#aq_from').value, to: $('#aq_to').value } }; admAudit(); break;
     case 'apage': S.auditQ.page = Math.max(0, S.auditQ.page + Number(id)); admAudit(); break;
   }
@@ -881,6 +1062,13 @@ window.addEventListener('online', () => { S.online = true; renderStatus(); flush
 window.addEventListener('offline', () => { S.online = false; renderStatus(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) { flush(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ----------------------------- splash screen (index.html #splash) ----------------------------- */
+function hideSplash() {
+  const sp = document.getElementById('splash'); if (!sp || sp._h) return; sp._h = 1;
+  setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 700); }, Math.max(0, 600 - (Date.now() - (window.__t0 || 0))));
+}
+setTimeout(hideSplash, 8000); // safety net: never leave the splash up forever
 
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
@@ -895,315 +1083,4 @@ async function boot() {
   S.view.tab = S.tabs[0]?.name || null; renderApp(); startTimers();
   if (navigator.onLine) { try { await refresh(); renderApp(); flush(); } catch (e) { if (e.code === 'network') setOnline(false); } }
 }
-/* =============================================================================
-   Dashboard (permission-aware, interactive) + Excel export per tab
-   - Works only on data the user can already read (S.tabs comes from the server filtered by rights)
-   - Charts are plain HTML/SVG (no extra library). Excel uses SheetJS already loaded in index.html
-   ============================================================================= */
-Object.assign(ICONS, { download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>' });
-
-Object.assign(I18N.en, {
-  dxTitle: 'Dashboard', dxOverview: 'Overview', dxRecords: 'Records', dxNew7: 'Updated (7 days)', dxSum: 'Total', dxAvg: 'Average',
-  dxGroupBy: 'Group by', dxMeasure: 'Measure', dxCount: 'Count', dxSumOf: f => `Sum of ${f}`, dxAvgOf: f => `Average of ${f}`,
-  dxDateBy: 'Date field', dxUpdated: 'Last updated', dxFrom: 'From', dxTo: 'To', dxD30: '30 days', dxD90: '90 days', dxYear: 'This year', dxAllTime: 'All time',
-  dxMonth: 'Month', dxTrend: 'Trend by month', dxActivity: 'Activity — last 14 days', dxRecent: 'Latest changes', dxClear: 'Clear filters',
-  dxExport: 'Export to Excel', dxExportAll: 'Export all tabs', dxExportCur: n => `Current results (${n})`, dxExportFull: n => `All records (${n})`,
-  dxExported: n => `Exported ${n} record(s)`, dxNoData: 'No data for these filters', dxShown: (a, b) => `Showing ${a} of ${b}`, dxMore: 'Show more',
-  dxR: 'View', dxW: 'Edit', dxD: 'Delete', dxConsole: 'Admin console', dxCsv: 'Excel library not available — exported as CSV', dxExpFail: 'Export failed', dxFiltered: 'Filtered results', dxOther: 'Other fields'
-});
-Object.assign(I18N.ar, {
-  dxTitle: 'لوحة المتابعة', dxOverview: 'نظرة عامة', dxRecords: 'السجلات', dxNew7: 'تحديثات (٧ أيام)', dxSum: 'الإجمالي', dxAvg: 'المتوسط',
-  dxGroupBy: 'تجميع حسب', dxMeasure: 'المقياس', dxCount: 'العدد', dxSumOf: f => `مجموع ${f}`, dxAvgOf: f => `متوسط ${f}`,
-  dxDateBy: 'حقل التاريخ', dxUpdated: 'آخر تعديل', dxFrom: 'من', dxTo: 'إلى', dxD30: '٣٠ يوم', dxD90: '٩٠ يوم', dxYear: 'هذه السنة', dxAllTime: 'الكل',
-  dxMonth: 'الشهر', dxTrend: 'الاتجاه حسب الشهر', dxActivity: 'النشاط — آخر ١٤ يوم', dxRecent: 'آخر التعديلات', dxClear: 'مسح الفلاتر',
-  dxExport: 'تصدير إلى Excel', dxExportAll: 'تصدير كل الصفحات', dxExportCur: n => `النتائج الحالية (${n})`, dxExportFull: n => `كل السجلات (${n})`,
-  dxExported: n => `تم تصدير ${n} سجل`, dxNoData: 'لا توجد بيانات بهذه الفلاتر', dxShown: (a, b) => `عرض ${a} من ${b}`, dxMore: 'عرض المزيد',
-  dxR: 'عرض', dxW: 'تعديل', dxD: 'حذف', dxConsole: 'لوحة الإدارة', dxCsv: 'مكتبة Excel غير متاحة — تم التصدير بصيغة CSV', dxExpFail: 'فشل التصدير', dxFiltered: 'النتائج المفلترة', dxOther: 'حقول أخرى'
-});
-
-/* ----------------------------- styles ----------------------------- */
-(() => {
-  const st = document.createElement('style');
-  st.textContent = `
-.dx-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;scrollbar-width:none}.dx-tabs::-webkit-scrollbar{display:none}
-.dx-tabs .btn{flex:none;white-space:nowrap}
-.dx-grid{display:grid;gap:12px;grid-template-columns:1fr;margin-top:14px}
-@media(min-width:768px){.dx-grid.c2{grid-template-columns:1fr 1fr}.dx-grid.c3{grid-template-columns:repeat(3,1fr)}}
-.dx-tc{cursor:pointer;display:flex;flex-direction:column;gap:8px}
-.dx-tc:hover{transform:translateY(-2px);box-shadow:var(--glow)}
-.dx-bar{display:flex;align-items:center;gap:8px;width:100%;padding:5px 6px;border-radius:10px;border:1px solid transparent;background:none;cursor:pointer;text-align:start}
-.dx-bar:hover,.dx-bar.on{background:var(--surface2);border-color:rgba(56,189,248,.35)}
-.dx-bl{flex:0 0 34%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-.dx-bt{flex:1;height:10px;border-radius:6px;background:var(--surface2);overflow:hidden}
-.dx-bt i{display:block;height:100%;border-radius:6px;transition:width .4s}
-.dx-bar b{font-size:13px;min-width:34px;text-align:end}
-.dx-trend{display:flex;gap:6px;align-items:flex-end;height:180px;overflow-x:auto;padding-bottom:4px;margin-top:8px}
-.dx-col{flex:1 0 36px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%;background:none;border:1px solid transparent;border-radius:10px;padding:2px;font:inherit;color:inherit}
-button.dx-col{cursor:pointer}
-.dx-col i{display:block;width:68%;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--accent),var(--accent2));min-height:3px;transition:height .4s}
-.dx-col b{font-size:11px}.dx-col small{font-size:10px;color:var(--muted);white-space:nowrap}
-button.dx-col:hover,.dx-col.on{background:var(--surface2);border-color:rgba(56,189,248,.35)}
-.dx-donut{width:150px;height:150px;flex:none}.dx-dt{font-size:6px;font-weight:700;fill:var(--text)}
-.dx-leg{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
-.dx-dot{width:10px;height:10px;border-radius:50%;flex:none}
-.dx-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:rgba(56,189,248,.14);color:var(--accent);font-size:12px;font-weight:700;border:0;cursor:pointer}
-.dx-tool{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
-.dx-tool .inp{width:auto;min-width:120px;padding:8px 10px}
-.dx-kpi{cursor:pointer;text-align:start;border:1px solid var(--border);color:inherit;font:inherit;width:100%}
-.dx-kpi.on{border-color:var(--accent);box-shadow:var(--glow)}
-.dx-kpi i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:2px}
-.dx-scroll{overflow-x:auto}
-.dx-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}.dx-h b{flex:1;min-width:120px}
-.dx-h .inp{width:auto;padding:6px 10px;font-size:13px}
-`;
-  document.head.appendChild(st);
-})();
-
-/* ----------------------------- state & helpers ----------------------------- */
-const DX = { tab: null, gk: null, meas: 'count', dk: null, from: '', to: '', filters: [], limit: 25, sig: '', adm: null };
-const dxPal = ['#38bdf8', '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#fb923c', '#22d3ee', '#e879f9', '#a3e635', '#94a3b8', '#60a5fa', '#f472b6'];
-const dxNf = v => Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined, { maximumFractionDigits: 2 });
-const dxYmd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const dxCat = sc => vf(sc).filter(f => ['select', 'multiselect', 'checkbox'].includes(f.type) || (f.lookup && f.type === 'text'));
-const dxNum = sc => vf(sc).filter(f => f.type === 'number' || f.type === 'calc');
-const dxDates = sc => vf(sc).filter(f => f.type === 'date' || f.type === 'datetime');
-const dxRowsAll = sc => [...dataOf(sc.name).values()].sort((a, b) => (b._updated || 0) - (a._updated || 0));
-const dxReset = () => { DX.gk = null; DX.meas = 'count'; DX.dk = null; DX.from = ''; DX.to = ''; DX.filters = []; DX.limit = 25; };
-const dxLabelOfKey = (sc, k) => k === '__month' ? t('dxMonth') : (() => { const f = sc.fields.find(x => x.key === k); return f ? fl(f) : k; })();
-
-function dxDate(r, dk) {
-  if (dk === '_updated') return r._updated ? new Date(r._updated) : null;
-  const v = r[dk]; if (!v) return null;
-  const d = new Date(String(v).length <= 10 ? v + 'T00:00' : v); return isNaN(d) ? null : d;
-}
-function dxVals(f, r) {
-  const v = r[f.key];
-  if (f.type === 'checkbox') return [v ? t('yes') : t('no')];
-  if (Array.isArray(v)) return v.length ? v.map(String) : ['—'];
-  return isEmpty(v) ? ['—'] : [String(v)];
-}
-function dxKeys(sc, k, r) {
-  if (k === '__month') { const d = dxDate(r, DX.dk); return d ? [dxYmd(d).slice(0, 7)] : []; }
-  const f = sc.fields.find(x => x.key === k); return f ? dxVals(f, r) : [];
-}
-function dxRows(sc) {
-  let rows = dxRowsAll(sc);
-  if (DX.from || DX.to) rows = rows.filter(r => { const d = dxDate(r, DX.dk); if (!d) return false; const k = dxYmd(d); return (!DX.from || k >= DX.from) && (!DX.to || k <= DX.to); });
-  DX.filters.forEach(x => { rows = rows.filter(r => dxKeys(sc, x.k, r).includes(x.v)); });
-  return rows;
-}
-function dxAgg(sc, rows, gk, meas, nf) {
-  const m = new Map();
-  rows.forEach(r => dxKeys(sc, gk, r).forEach(k => {
-    const o = m.get(k) || { n: 0, s: 0, c: 0 }; o.n++;
-    if (nf && !isEmpty(r[nf.key]) && isFinite(Number(r[nf.key]))) { o.s += Number(r[nf.key]); o.c++; }
-    m.set(k, o);
-  }));
-  return [...m].map(([k, o]) => ({ k, n: o.n, v: meas === 'sum' ? o.s : meas === 'avg' ? (o.c ? o.s / o.c : 0) : o.n }));
-}
-const dxSig = () => S.tabs.map(tb => { const m = dataOf(tb.name); let mx = 0; m.forEach(r => { if ((r._updated || 0) > mx) mx = r._updated; }); return tb.name + ':' + m.size + ':' + mx; }).join('|') + '|' + S.pending + S.lang + S.theme;
-
-/* ----------------------------- chart pieces ----------------------------- */
-function dxBars(items, gk) {
-  const max = Math.max(1e-9, ...items.map(i => i.v));
-  return items.map((i, ix) => {
-    const on = DX.filters.some(x => x.k === gk && x.v === i.k);
-    return `<button class="dx-bar ${on ? 'on' : ''}" data-dx="pick" data-k="${esc(gk)}" data-v="${esc(i.k)}"><span class="dx-bl" title="${esc(i.k)}">${esc(i.k)}</span><span class="dx-bt"><i style="width:${Math.max(2, Math.max(0, i.v) / max * 100)}%;background:${dxPal[ix % dxPal.length]}"></i></span><b>${dxNf(i.v)}</b></button>`;
-  }).join('');
-}
-function dxDonut(items, gk) {
-  const pos = items.filter(i => i.v > 0), tot = pos.reduce((a, i) => a + i.v, 0) || 1; let acc = 0;
-  const segs = pos.map((i, ix) => {
-    const p = i.v / tot * 100, c = `<circle r="15.9155" cx="21" cy="21" fill="none" stroke="${dxPal[ix % dxPal.length]}" stroke-width="6" stroke-dasharray="${p} ${100 - p}" stroke-dashoffset="${25 - acc}" data-dx="pick" data-k="${esc(gk)}" data-v="${esc(i.k)}" style="cursor:pointer"><title>${esc(i.k)}: ${dxNf(i.v)}</title></circle>`;
-    acc += p; return c;
-  }).join('');
-  const leg = pos.map((i, ix) => `<button class="dx-bar ${DX.filters.some(x => x.k === gk && x.v === i.k) ? 'on' : ''}" data-dx="pick" data-k="${esc(gk)}" data-v="${esc(i.k)}"><span class="dx-dot" style="background:${dxPal[ix % dxPal.length]}"></span><span class="dx-bl" style="flex:1" title="${esc(i.k)}">${esc(i.k)}</span><b>${dxNf(i.v)}</b><span class="muted" style="font-size:11px;min-width:34px;text-align:end">${Math.round(i.v / tot * 100)}%</span></button>`).join('');
-  return `<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><svg viewBox="0 0 42 42" class="dx-donut"><circle r="15.9155" cx="21" cy="21" fill="none" stroke="var(--surface2)" stroke-width="6"/>${segs}<text x="21" y="23" text-anchor="middle" class="dx-dt">${dxNf(tot)}</text></svg><div class="dx-leg">${leg}</div></div>`;
-}
-function dxColumns(items, gk, clickable) {
-  const max = Math.max(1e-9, ...items.map(i => i.v));
-  return `<div class="dx-trend">${items.map(i => { const on = DX.filters.some(x => x.k === gk && x.v === i.k), h = Math.max(2, Math.max(0, i.v) / max * 78);
-    const inner = `<b>${i.v ? dxNf(i.v) : ''}</b><i style="height:${h}%"></i><small>${esc(i.k.length === 7 ? i.k.slice(2) : i.k.slice(5))}</small>`;
-    return clickable ? `<button class="dx-col ${on ? 'on' : ''}" data-dx="pick" data-k="${esc(gk)}" data-v="${esc(i.k)}">${inner}</button>` : `<div class="dx-col">${inner}</div>`; }).join('')}</div>`;
-}
-const dxFillMonths = items => {
-  if (!items.length) return items; const m = new Map(items.map(i => [i.k, i])), ks = items.map(i => i.k).sort(), out = [];
-  let [y, mo] = ks[0].split('-').map(Number); const [ey, em] = ks[ks.length - 1].split('-').map(Number);
-  while ((y < ey || (y === ey && mo <= em)) && out.length < 120) { const k = y + '-' + String(mo).padStart(2, '0'); out.push(m.get(k) || { k, n: 0, v: 0 }); mo++; if (mo > 12) { mo = 1; y++; } }
-  return out.slice(-24);
-};
-const dxRights = tb => ['r', 'w', 'd'].filter(x => canR(tb, x)).map(x => `<span class="badge">${{ r: '👁️', w: '✏️', d: '🗑️' }[x]} ${esc(t('dx' + x.toUpperCase()))}</span>`).join(' ');
-
-/* ----------------------------- views ----------------------------- */
-function dxTabsBar() {
-  return `<div class="dx-tabs"><button class="btn ${!DX.tab ? 'primary' : ''}" data-dx="tab" data-id="">📊 ${esc(t('dxOverview'))}</button>${S.tabs.map(tb => `<button class="btn ${DX.tab === tb.name ? 'primary' : ''}" data-dx="tab" data-id="${esc(tb.name)}">${tb.icon || '📄'} ${esc(tl(tb))}</button>`).join('')}</div>`;
-}
-
-function dxOverview() {
-  const wk = Date.now() - 7 * 864e5;
-  const stats = S.tabs.map(tb => { const rows = dxRowsAll(tb); return { tb, n: rows.length, w: rows.filter(r => (r._updated || 0) > wk).length }; });
-  const total = stats.reduce((a, s) => a + s.n, 0), totalW = stats.reduce((a, s) => a + s.w, 0);
-  const days = []; for (let i = 13; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); days.push({ k: dxYmd(d), n: 0, v: 0 }); }
-  const dm = new Map(days.map(d => [d.k, d])); S.tabs.forEach(tb => dxRowsAll(tb).forEach(r => { if (r._updated) { const o = dm.get(dxYmd(new Date(r._updated))); if (o) { o.n++; o.v++; } } }));
-  const recent = []; S.tabs.forEach(tb => dxRowsAll(tb).slice(0, 8).forEach(r => recent.push({ tb, r }))); recent.sort((a, b) => (b.r._updated || 0) - (a.r._updated || 0));
-  return `<div class="kpis">${[[t('dxRecords'), total, 'var(--accent)'], [t('dxNew7'), totalW, 'var(--ok)'], [t('tabs'), S.tabs.length, 'var(--accent2)'], [t('pendingN', S.pending), S.pending, S.pending ? 'var(--warn)' : 'var(--muted)']].map(([l, v, c]) => `<div class="kpi glass" style="--c:${c}"><small>${esc(l)}</small><b style="color:${c}">${dxNf(v)}</b></div>`).join('')}</div>
-    ${S.user.role === 'admin' ? '<div id="dxAdm" style="margin-top:12px"></div>' : ''}
-    <div class="dx-h" style="margin-top:16px"><b>${esc(t('dxOverview'))}</b><button class="btn" data-dx="xl" data-id="__all">${ic('download')} ${esc(t('dxExportAll'))}</button></div>
-    <div class="dx-grid c3" style="margin-top:6px">${stats.map(({ tb, n, w }) => `<div class="card glass dx-tc" data-dx="tab" data-id="${esc(tb.name)}"><div style="display:flex;align-items:center;gap:10px"><span style="font-size:26px">${tb.icon || '📄'}</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(tl(tb))}</b><button class="btn icon ghost" data-dx="xl" data-id="${esc(tb.name)}" title="${esc(t('dxExport'))}">${ic('download')}</button></div>
-      <div style="display:flex;align-items:baseline;gap:10px"><b style="font-size:30px;color:var(--accent)">${dxNf(n)}</b><span class="muted" style="font-size:12px">${esc(t('dxNew7'))}: <b style="color:var(--ok)">${dxNf(w)}</b></span></div><div>${dxRights(tb)}</div></div>`).join('')}</div>
-    <div class="dx-grid c2"><div class="card glass"><b>${esc(t('dxActivity'))}</b>${dxColumns(days, '__day', false)}</div>
-    <div class="card glass"><b>${esc(t('dxRecent'))}</b>${recent.slice(0, 8).map(({ tb, r }) => { const f0 = vf(tb)[0]; return `<div class="urow" style="cursor:pointer;font-size:14px" data-dx="open" data-tab="${esc(tb.name)}" data-id="${esc(r._id)}"><span style="font-size:18px">${tb.icon || '📄'}</span><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f0 ? displayVal(f0, r[f0.key]) || '—' : '—')}</b><span class="muted" style="font-size:12px">${esc(relTime(r._updated))}</span></div>`; }).join('') || '<div class="muted">—</div>'}</div></div>`;
-}
-
-async function dxAdminStrip() {
-  const draw = r => { const box = $('#dxAdm'); if (!box || S.view.kind !== 'dash' || DX.tab) return; const k = r.kpis;
-    box.innerHTML = `<div class="card glass" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap"><b>🛡️ ${esc(t('admin'))}</b>${[['onlineNow', k.online, 'var(--ok)'], ['totalUsers', k.total, 'var(--accent)'], ['actionsToday', k.actionsToday, 'var(--accent2)'], ['openAlerts', k.openAlerts, k.openAlerts ? 'var(--err)' : 'var(--muted)']].map(([l, v, c]) => `<span style="font-size:13px" class="muted">${esc(t(l))}: <b style="color:${c};font-size:16px">${v}</b></span>`).join('')}<span style="flex:1"></span><button class="btn" data-act="nav" data-id="admin">${esc(t('dxConsole'))}</button></div>`; };
-  if (DX.adm && DX.adm.u === S.user.username) draw(DX.adm.r);
-  if (!S.online || (DX.adm && DX.adm.u === S.user.username && Date.now() - DX.adm.t < 20000)) return;
-  try { const r = await api('admin_overview'); DX.adm = { t: Date.now(), u: S.user.username, r }; draw(r); } catch (e) {}
-}
-
-function dxDetail(sc) {
-  const cats = dxCat(sc), nums = dxNum(sc), dates = dxDates(sc), total = dataOf(sc.name).size;
-  if (!DX.dk || (DX.dk !== '_updated' && !dates.some(f => f.key === DX.dk))) DX.dk = dates[0]?.key || '_updated';
-  if (!DX.gk || (DX.gk !== '__month' && !cats.some(f => f.key === DX.gk))) DX.gk = (cats.find(f => f.options?.length) || cats[0])?.key || '__month';
-  const [mop, mkey] = String(DX.meas).split(':'), mf = nums.find(f => f.key === mkey), meas = mf ? mop : 'count';
-  const rows = dxRows(sc), wk = Date.now() - 7 * 864e5;
-  const nsum = f => { let s = 0, c = 0; rows.forEach(r => { if (!isEmpty(r[f.key]) && isFinite(Number(r[f.key]))) { s += Number(r[f.key]); c++; } }); return { s, c, a: c ? s / c : 0 }; };
-  const kp = [`<button class="dx-kpi kpi glass ${meas === 'count' ? 'on' : ''}" style="--c:var(--accent)" data-dx="meas" data-v="count"><small>${esc(t('dxRecords'))}</small><b style="color:var(--accent)">${dxNf(rows.length)}</b><i>${rows.length !== total ? esc(t('dxShown', rows.length, total)) : '&nbsp;'}</i></button>`,
-    `<div class="kpi glass" style="--c:var(--ok)"><small>${esc(t('dxNew7'))}</small><b style="color:var(--ok)">${dxNf(rows.filter(r => (r._updated || 0) > wk).length)}</b></div>`]
-    .concat(nums.slice(0, 2).map((f, i) => { const o = nsum(f), c = i ? 'var(--warn)' : 'var(--accent2)'; return `<button class="dx-kpi kpi glass ${mkey === f.key ? 'on' : ''}" style="--c:${c}" data-dx="meas" data-v="sum:${esc(f.key)}"><small>${esc(fl(f))} · ${esc(t('dxSum'))}</small><b style="color:${c}">${dxNf(o.s)}</b><i>${esc(t('dxAvg'))}: ${dxNf(o.a)}</i></button>`; }));
-  const dateOpts = dates.map(f => `<option value="${esc(f.key)}" ${DX.dk === f.key ? 'selected' : ''}>${esc(fl(f))}</option>`).join('') + `<option value="_updated" ${DX.dk === '_updated' ? 'selected' : ''}>${esc(t('dxUpdated'))}</option>`;
-  const tool = `<div class="dx-tool"><select class="inp" data-dxc="dk" title="${esc(t('dxDateBy'))}">${dateOpts}</select>
-    <input type="date" class="inp" data-dxc="from" value="${esc(DX.from)}" aria-label="${esc(t('dxFrom'))}"><span class="muted">→</span><input type="date" class="inp" data-dxc="to" value="${esc(DX.to)}" aria-label="${esc(t('dxTo'))}">
-    ${[['30', t('dxD30')], ['90', t('dxD90')], ['year', t('dxYear')], ['', t('dxAllTime')]].map(([v, l]) => `<button class="btn ghost" style="padding:7px 10px;font-size:13px" data-dx="range" data-v="${v}">${esc(l)}</button>`).join('')}
-    <span style="flex:1"></span><button class="btn" data-dx="xl" data-id="${esc(sc.name)}">${ic('download')} ${esc(t('dxExport'))}</button></div>`;
-  const chips = DX.filters.length || DX.from || DX.to ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${DX.filters.map(x => `<button class="dx-chip" data-dx="unpick" data-k="${esc(x.k)}" data-v="${esc(x.v)}">✕ ${esc(dxLabelOfKey(sc, x.k))}: ${esc(x.v)}</button>`).join('')}<button class="dx-chip" style="background:rgba(248,113,113,.15);color:var(--err)" data-dx="clear">${esc(t('dxClear'))}</button></div>` : '';
-  if (!rows.length) return `${tool}${chips}<div class="card" style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:40px">🗂️</div>${esc(t('dxNoData'))}</div>`;
-
-  const gOpts = cats.map(f => `<option value="${esc(f.key)}" ${DX.gk === f.key ? 'selected' : ''}>${esc(fl(f))}</option>`).join('') + `<option value="__month" ${DX.gk === '__month' ? 'selected' : ''}>${esc(t('dxMonth'))}</option>`;
-  const mOpts = `<option value="count" ${meas === 'count' ? 'selected' : ''}>${esc(t('dxCount'))}</option>` + nums.map(f => `<option value="sum:${esc(f.key)}" ${meas === 'sum' && mkey === f.key ? 'selected' : ''}>${esc(t('dxSumOf', fl(f)))}</option><option value="avg:${esc(f.key)}" ${meas === 'avg' && mkey === f.key ? 'selected' : ''}>${esc(t('dxAvgOf', fl(f)))}</option>`).join('');
-  let items = dxAgg(sc, rows, DX.gk, meas, mf);
-  const isM = DX.gk === '__month'; items = isM ? dxFillMonths(items) : items.sort((a, b) => b.v - a.v).slice(0, 12);
-  const primary = `<div class="card glass"><div class="dx-h"><b>${esc(dxLabelOfKey(sc, DX.gk))}</b><select class="inp" data-dxc="gk">${gOpts}</select><select class="inp" data-dxc="meas">${mOpts}</select></div>${isM ? dxColumns(items, '__month', true) : (cats.find(f => f.key === DX.gk)?.type === 'multiselect' || items.length > 8 ? dxBars(items, DX.gk) : dxDonut(items, DX.gk))}</div>`;
-  let trendItems = dxFillMonths(dxAgg(sc, rows, '__month', meas, mf));
-  const trend = isM ? '' : `<div class="card glass"><b>${esc(t('dxTrend'))}</b> <span class="muted" style="font-size:12px">· ${esc(DX.dk === '_updated' ? t('dxUpdated') : dxLabelOfKey(sc, DX.dk))}</span>${trendItems.length ? dxColumns(trendItems, '__month', true) : ''}</div>`;
-  const others = cats.filter(f => f.key !== DX.gk).slice(0, 4).map(f => { const it = dxAgg(sc, rows, f.key, meas, mf).sort((a, b) => b.v - a.v).slice(0, 8); return it.length ? `<div class="card glass"><b>${esc(fl(f))}</b><div style="margin-top:6px">${dxBars(it, f.key)}</div></div>` : ''; }).join('');
-  const cols = vf(sc).filter(f => !['longtext', 'file'].includes(f.type)).slice(0, 6), shown = rows.slice(0, DX.limit);
-  const table = `<div class="card glass" style="margin-top:14px"><div class="dx-h"><b>${esc(t('dxFiltered'))} (${dxNf(rows.length)})</b><button class="btn" data-dx="xlcur">${ic('download')} ${esc(t('dxExport'))}</button></div><div class="dx-scroll"><table class="t"><thead><tr>${cols.map(c => `<th>${esc(fl(c))}</th>`).join('')}</tr></thead><tbody>${shown.map(r => `<tr class="row" data-dx="open" data-tab="${esc(sc.name)}" data-id="${esc(r._id)}">${cols.map((c, i) => `<td>${i === 0 ? '<b>' : ''}${esc(displayVal(c, r[c.key]))}${i === 0 ? '</b>' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${rows.length > shown.length ? `<button class="btn" style="width:100%;margin-top:8px" data-dx="more">${esc(t('dxMore'))} · ${esc(t('dxShown', shown.length, rows.length))}</button>` : ''}</div>`;
-  return `${tool}${chips}<div class="kpis" style="margin-bottom:14px">${kp.join('')}</div><div class="dx-grid c2" style="margin-top:0">${primary}${trend}</div>${others ? `<div class="dx-grid c2">${others}</div>` : ''}${table}`;
-}
-
-function renderDash() {
-  const main = $('#main'); if (!main) return; const y = window.scrollY;
-  $('#hdTitle').textContent = '📊 ' + t('dxTitle'); $('#fab').style.display = 'none'; DX.sig = dxSig();
-  if (!S.tabs.length) { main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
-  if (DX.tab && !schemaOf(DX.tab)) { DX.tab = null; dxReset(); }
-  const sc = DX.tab && schemaOf(DX.tab);
-  main.innerHTML = dxTabsBar() + (sc ? dxDetail(sc) : dxOverview());
-  window.scrollTo(0, y); if (!sc && S.user.role === 'admin') dxAdminStrip();
-}
-
-/* ----------------------------- interactions ----------------------------- */
-document.addEventListener('click', e => {
-  if (S.view.kind !== 'dash') return;
-  const el = e.target.closest('[data-dx]'); if (!el) return;
-  const a = el.dataset.dx, d = el.dataset, sc = DX.tab && schemaOf(DX.tab);
-  switch (a) {
-    case 'tab': DX.tab = d.id || null; dxReset(); renderDash(); window.scrollTo(0, 0); break;
-    case 'pick': { const i = DX.filters.findIndex(x => x.k === d.k && x.v === d.v); if (i >= 0) DX.filters.splice(i, 1); else DX.filters.push({ k: d.k, v: d.v }); DX.limit = 25; renderDash(); break; }
-    case 'unpick': DX.filters = DX.filters.filter(x => !(x.k === d.k && x.v === d.v)); renderDash(); break;
-    case 'clear': DX.filters = []; DX.from = ''; DX.to = ''; renderDash(); break;
-    case 'meas': DX.meas = d.v; renderDash(); break;
-    case 'range': { if (!d.v) { DX.from = ''; DX.to = ''; } else { const n = new Date(); DX.to = ''; DX.from = d.v === 'year' ? n.getFullYear() + '-01-01' : dxYmd(new Date(n.getTime() - Number(d.v) * 864e5)); } renderDash(); break; }
-    case 'more': DX.limit += 25; renderDash(); break;
-    case 'open': { const tb = d.tab || DX.tab; if (!schemaOf(tb)) break; S.view.tab = tb; openRecord(d.id); break; }
-    case 'xl': e.stopPropagation(); if (d.id === '__all') xlExportAll(); else { const s2 = schemaOf(d.id); if (s2) xlExportDialog(s2, dxRowsAll(s2), null); } break;
-    case 'xlcur': if (sc) xlExportDialog(sc, dxRowsAll(sc), dxRows(sc)); break;
-  }
-});
-document.addEventListener('change', e => {
-  const el = e.target.closest('[data-dxc]'); if (!el || S.view.kind !== 'dash') return;
-  const k = el.dataset.dxc; if (k === 'gk') DX.gk = el.value; else if (k === 'meas') DX.meas = el.value; else if (k === 'dk') DX.dk = el.value; else if (k === 'from') DX.from = el.value; else if (k === 'to') DX.to = el.value;
-  renderDash();
-});
-/* live refresh when synced data changes (cheap signature check, no re-render otherwise) */
-setInterval(() => { if (S.token && S.user && S.view.kind === 'dash' && !$('#overlay') && !$('#dlg') && dxSig() !== DX.sig) renderDash(); }, 3000);
-
-/* ----------------------------- Excel export ----------------------------- */
-function xlCell(f, v) {
-  if (isEmpty(v)) return '';
-  switch (f.type) {
-    case 'number': case 'calc': { const n = Number(v); return isFinite(n) && String(v).trim() !== '' ? n : String(v); }
-    case 'date': { const d = new Date(v + 'T00:00'); return isNaN(d) ? String(v) : d; }
-    case 'datetime': { const d = new Date(v); return isNaN(d) ? String(v) : d; }
-    case 'checkbox': return v ? t('yes') : t('no');
-    case 'multiselect': return v.join(', ');
-    case 'file': return v.map(x => x.name).join(', ');
-    default: return String(v);
-  }
-}
-function xlAoa(sc, rows) {
-  const f = vf(sc);
-  return [f.map(x => fl(x)).concat([t('dxUpdated')])].concat(rows.map(r => f.map(x => xlCell(x, r[x.key])).concat([r._updated ? new Date(r._updated) : ''])));
-}
-function xlSheet(sc, rows) {
-  const aoa = xlAoa(sc, rows), f = vf(sc), ws = XLSX.utils.aoa_to_sheet(aoa, { cellDates: true }), nc = aoa[0].length;
-  ws['!cols'] = aoa[0].map((h, i) => ({ wch: Math.min(45, aoa.reduce((m, row) => Math.max(m, row[i] instanceof Date ? 18 : String(row[i] ?? '').length + 2), 8)) }));
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(aoa.length - 1, 1), c: nc - 1 } }) };
-  for (let ri = 1; ri < aoa.length; ri++) {
-    f.forEach((x, ci) => { if (x.type === 'date' || x.type === 'datetime') { const c = ws[XLSX.utils.encode_cell({ r: ri, c: ci })]; if (c && c.t === 'd') c.z = x.type === 'date' ? 'yyyy-mm-dd' : 'yyyy-mm-dd hh:mm'; } });
-    const c = ws[XLSX.utils.encode_cell({ r: ri, c: nc - 1 })]; if (c && c.t === 'd') c.z = 'yyyy-mm-dd hh:mm';
-  }
-  return ws;
-}
-const xlName = s => String(s || 'export').replace(/[\\\/:*?"<>|\[\]]/g, ' ').trim().slice(0, 31) || 'Sheet';
-function xlDownloadCsv(sc, rows) {
-  const q = v => { v = v instanceof Date ? dxYmd(v) : String(v ?? ''); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
-  const blob = new Blob(['\ufeff' + xlAoa(sc, rows).map(r => r.map(q).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${xlName(tl(sc))}_${dxYmd(new Date())}.csv`; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-}
-function xlExport(sc, rows) {
-  if (!sc || !canR(sc, 'r')) return;
-  try {
-    if (typeof XLSX === 'undefined') { xlDownloadCsv(sc, rows); toast(t('dxCsv'), 'warn', { ms: 5000 }); return; }
-    const wb = XLSX.utils.book_new(); wb.Workbook = { Views: [{ RTL: S.lang === 'ar' }] };
-    XLSX.utils.book_append_sheet(wb, xlSheet(sc, rows), xlName(tl(sc)));
-    XLSX.writeFile(wb, `${xlName(tl(sc))}_${dxYmd(new Date())}.xlsx`, { cellDates: true });
-    toast(t('dxExported', rows.length));
-  } catch (err) { console.error(err); toast(t('dxExpFail'), 'err'); }
-}
-function xlExportAll() {
-  try {
-    if (typeof XLSX === 'undefined') { toast(t('dxExpFail'), 'err'); return; }
-    const wb = XLSX.utils.book_new(), used = new Set(); wb.Workbook = { Views: [{ RTL: S.lang === 'ar' }] }; let n = 0;
-    S.tabs.filter(tb => canR(tb, 'r')).forEach(tb => {
-      let nm = xlName(tl(tb)), i = 2; while (used.has(nm.toLowerCase())) nm = xlName(tl(tb)).slice(0, 28) + '_' + i++; used.add(nm.toLowerCase());
-      const rows = dxRowsAll(tb); n += rows.length; XLSX.utils.book_append_sheet(wb, xlSheet(tb, rows), nm);
-    });
-    XLSX.writeFile(wb, `${xlName(t('appName'))}_${dxYmd(new Date())}.xlsx`, { cellDates: true }); toast(t('dxExported', n));
-  } catch (err) { console.error(err); toast(t('dxExpFail'), 'err'); }
-}
-/* all = every record of the tab; cur = a narrower list (search / filters). Asks only when they differ. */
-function xlExportDialog(sc, all, cur) {
-  if (!cur || cur.length === all.length) { xlExport(sc, all); return; }
-  const o = openSheet(`<div class="hd"><h3>${esc(t('dxExport'))} — ${esc(tl(sc))}</h3></div><div style="display:grid;gap:10px;padding:6px 0 10px"><button class="btn primary" data-xl="cur">${ic('download')} ${esc(t('dxExportCur', cur.length))}</button><button class="btn" data-xl="all">${ic('download')} ${esc(t('dxExportFull', all.length))}</button></div>`);
-  o.addEventListener('click', e => { const b = e.target.closest('[data-xl]'); if (!b) return; closeSheet(true); xlExport(sc, b.dataset.xl === 'cur' ? cur : all); });
-}
-/* export button inside a normal tab view: exports what is currently shown (search + chip filter) */
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-act="xl_tab"]'); if (!b) return;
-  const sc = schemaOf(S.view.tab); if (sc) xlExportDialog(sc, dxRowsAll(sc), rowsFor(sc));
-});
-
-/* ----------------------------- splash screen ----------------------------- */
-(() => {
-  const sp = document.getElementById('splash'); if (!sp) return;
-  let done = false;
-  const hide = () => { if (done) return; done = true; const wait = Math.max(0, 1500 - (Date.now() - (window.__t0 || Date.now()))); setTimeout(() => { if (window.__spDone) window.__spDone(); setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 900); }, 450); }, wait); };
-  const app = document.getElementById('app');
-  if (app) new MutationObserver(() => { if (app.children.length) hide(); }).observe(app, { childList: true });
-  setTimeout(hide, 8000);   // safety: never leave the splash stuck
-})();
-
 boot();
