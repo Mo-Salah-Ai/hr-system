@@ -4,7 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbyxVpkLJX-oG8trubQyJ_ZMPtyoXwUL-JV9KPIu90xGE_82iQLwCa--oM0C0cnTX9wRkw/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbxwcwPeU0Yyov_7ijEEuzOwc3QpFf2R5vd4O7-bb51yheahTp3P88kihYhgjpBDOCK6bA/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -531,6 +531,7 @@ async function refresh() {
 
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
+  hideSplash();
   closeSheet(true);
   $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
@@ -571,6 +572,7 @@ function navItems() {
   return items;
 }
 function renderApp() {
+  hideSplash();
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
@@ -1049,6 +1051,13 @@ window.addEventListener('online', () => { S.online = true; renderStatus(); flush
 window.addEventListener('offline', () => { S.online = false; renderStatus(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) { flush(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ----------------------------- splash screen (index.html #splash) ----------------------------- */
+function hideSplash() {
+  const sp = document.getElementById('splash'); if (!sp || sp._h) return; sp._h = 1;
+  setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 700); }, Math.max(0, 600 - (Date.now() - (window.__t0 || 0))));
+}
+setTimeout(hideSplash, 8000); // safety net: never leave the splash up forever
 
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
