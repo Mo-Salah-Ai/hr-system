@@ -4,7 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbye6Q1p6bPe33M8tuf2wRuL-GRrodWZNjDbiCLDVvIVoX6fsrOnkDwQDdPeqrNPs53x-g/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbzl70taMLi9xGSJrOrFivp4Mt6KYYcrL5ao0N4p9eSYFubzuLbOTi1wNMojJnD55tBXmw/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -121,7 +121,7 @@ function cond(expr, data) {
 /* Safe formula engine (same code in app.js and Code.gs). Supports + - * / % ( ), comparisons, dates and functions:
    DAYS(end,start) MONTHS(end,start) YEARS(end,start) ADDDAYS(date,n) ADDMONTHS(date,n) TODAY()
    ROUND(x,n) ABS MIN MAX SUM AVG IF(cond,a,b) AND OR NOT CONCAT */
-function calcVal(expr, data, cols) {
+function calcVal(expr, data) {
   const DAY = 86400000, DRE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
   try {
     const s = String(expr == null ? '' : expr).replace(/^\s*=/, ''), T = []; let i = 0, m;
@@ -133,12 +133,12 @@ function calcVal(expr, data, cols) {
       else if (c === '[') { const j = s.indexOf(']', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
       else if (c === '"' || c === "'") { const j = s.indexOf(c, i + 1); if (j < 0) return ''; T.push({ t: 's', v: s.slice(i + 1, j) }); i = j + 1; }
       else if ((m = /^[A-Za-z_]\w*/.exec(rest))) { T.push({ t: 'i', v: m[0] }); i += m[0].length; }
-      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%^&:(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
+      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%^&(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
       else return '';
     }
     let p = 0;
-    const isD = v => v !== null && typeof v === 'object' && !Array.isArray(v);
-    const num = v => Array.isArray(v) ? NaN : v == null ? 0 : isD(v) ? v.d : typeof v === 'number' ? v : (v === '' || isNaN(Number(v)) ? NaN : Number(v));
+    const isD = v => v !== null && typeof v === 'object';
+    const num = v => v == null ? 0 : isD(v) ? v.d : typeof v === 'number' ? v : (v === '' || isNaN(Number(v)) ? NaN : Number(v));
     const ref = k => {
       const v = data[k]; if (v === undefined || v === null || v === '') return null;
       if (typeof v === 'number') return v; if (typeof v === 'boolean') return v ? 1 : 0; if (Array.isArray(v)) return v.join(', ');
@@ -146,8 +146,6 @@ function calcVal(expr, data, cols) {
       if (d) return { d: Date.UTC(+d[1], +d[2] - 1, +d[3], +(d[4] || 0), +(d[5] || 0)) / DAY };
       return str.trim() !== '' && !isNaN(Number(str)) ? Number(str) : str;
     };
-    const colIdx = k => { const m = /^([A-Za-z]{1,2})\d*$/.exec(k); if (!m || !cols) return -1; let n = 0; m[1].toUpperCase().split('').forEach(ch => { n = n * 26 + ch.charCodeAt(0) - 64; }); return n - 1; };
-    const nameRef = k => { if (Object.prototype.hasOwnProperty.call(data, k)) return ref(k); const i = colIdx(k); return i >= 0 && cols[i] !== undefined ? ref(cols[i]) : ref(k); };
     const ymd = v => new Date(Math.round(v.d * DAY));
     const addM = (v, n) => { const dt = ymd(v), y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + Math.trunc(n), last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate(); return { d: Date.UTC(y, mo, Math.min(dt.getUTCDate(), last), dt.getUTCHours(), dt.getUTCMinutes()) / DAY }; };
     const months = (a, b) => { const x = ymd(a), y = ymd(b); let n = (x.getUTCFullYear() - y.getUTCFullYear()) * 12 + x.getUTCMonth() - y.getUTCMonth(); if (n > 0 && x.getUTCDate() < y.getUTCDate()) n--; if (n < 0 && x.getUTCDate() > y.getUTCDate()) n++; return n; };
@@ -221,17 +219,16 @@ function calcVal(expr, data, cols) {
         if (peek('(')) {
           p++; const args = [];
           if (peek(')')) p++; else { for (;;) { args.push(expr0()); if (peek(',')) { p++; continue; } if (peek(')')) { p++; break; } throw 0; } }
-          const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args.reduce((acc, x) => acc.concat(Array.isArray(x) ? x : [x]), []));
+          const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args);
         }
         const U = k.v.toUpperCase();
         if ((U === 'TRUE' || U === 'FALSE') && !(k.v in data)) return U === 'TRUE' ? 1 : 0;
-        if (peek(':')) { p++; const e2 = T[p++]; if (!e2 || e2.t !== 'i') throw 0; const a = colIdx(k.v), b = colIdx(e2.v); if (a < 0 || b < 0 || !cols) throw 0; const out = []; for (let x = Math.min(a, b); x <= Math.max(a, b); x++) if (cols[x] !== undefined) out.push(ref(cols[x])); return out; }
-        return nameRef(k.v);
+        return ref(k.v);
       }
       throw 0;
     };
     let r = expr0(); if (p < T.length) return '';
-    if (r == null || Array.isArray(r)) return ''; if (isD(r)) return toStr(r); if (typeof r === 'string') return r;
+    if (r == null) return ''; if (isD(r)) return toStr(r); if (typeof r === 'string') return r;
     return isFinite(r) ? Math.round(r * 100) / 100 : '';
   } catch (e) { return ''; }
 }
@@ -240,7 +237,7 @@ const vf = sc => sc.fields.filter(f => !f.hidden);
 const canR = (sc, r) => (sc.rights || '').includes(r);
 const blank = f => f.type === 'checkbox' ? false : (f.type === 'multiselect' || f.type === 'file') ? [] : '';
 const blankDraft = sc => Object.fromEntries(sc.fields.map(f => [f.key, blank(f)]));
-function recalc(sc, d) { const ck = sc.fields.map(f => f.key); sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d, ck); }); }
+function recalc(sc, d) { sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d); }); }
 const isEmpty = v => v === '' || v == null || (Array.isArray(v) && !v.length);
 function fieldError(sc, f, d) {
   if (f.showIf && !cond(f.showIf, d)) return '';
@@ -534,7 +531,6 @@ async function refresh() {
 
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
-  hideSplash();
   closeSheet(true);
   $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
@@ -575,7 +571,6 @@ function navItems() {
   return items;
 }
 function renderApp() {
-  hideSplash();
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
@@ -959,16 +954,16 @@ function openTabBuilder(tabName) {
   const FNS = [['DATEDIF', L('DATEDIF (start, end, "d"/"m"/"y")', 'DATEDIF فرق تاريخين (البداية، النهاية، "d"/"m"/"y")')], ['DAYS', L('DAYS (end, start)', 'DAYS أيام بين تاريخين (النهاية، البداية)')], ['TODAY', L('TODAY', 'TODAY تاريخ اليوم')], ['EDATE', L('EDATE (date, months)', 'EDATE إضافة شهور (التاريخ، عدد)')], ['ADDDAYS', L('ADDDAYS (date, days)', 'ADDDAYS إضافة أيام (التاريخ، عدد)')], ['EOMONTH', L('EOMONTH (date, months)', 'EOMONTH آخر يوم في الشهر')], ['YEAR', L('YEAR', 'YEAR السنة')], ['MONTH', L('MONTH', 'MONTH الشهر')], ['DAY', L('DAY', 'DAY اليوم')], ['IF', L('IF (test, yes, no)', 'IF لو (الشرط، نعم، لا)')], ['IFERROR', L('IFERROR (x, instead)', 'IFERROR لو في خطأ')], ['AND', 'AND'], ['OR', 'OR'], ['SUM', L('SUM', 'SUM مجموع')], ['AVG', L('AVG (average)', 'AVG متوسط')], ['MIN', 'MIN'], ['MAX', 'MAX'], ['ROUND', L('ROUND (x, digits)', 'ROUND تقريب')], ['ROUNDUP', 'ROUNDUP'], ['ROUNDDOWN', 'ROUNDDOWN'], ['INT', 'INT'], ['MOD', L('MOD (x, y)', 'MOD باقي القسمة')], ['ABS', 'ABS'], ['CONCAT', L('CONCAT (join text)', 'CONCAT دمج نصوص')], ['LEFT', 'LEFT'], ['RIGHT', 'RIGHT'], ['LEN', 'LEN'], ['UPPER', 'UPPER'], ['LOWER', 'LOWER'], ['TRIM', 'TRIM']];
   const o = openSheet(`<div class="hd"><h3>${esc(edit ? L('Edit tab', 'تعديل الصفحة') : t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name" value="${esc(edit ? edit.label : '')}"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar" value="${esc(edit ? edit.ar || '' : '')}"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="${esc(edit ? edit.icon || '📄' : '📄')}" style="text-align:center"></div></div>
-    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Formulas work like Excel: start with =, use column names, [Column Name], or column letters like D2 (the 4th column). Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
+    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Formulas work like Excel: start with =, use column names or [Column Name]. Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
     <label class="lab">${esc(t('fields'))}</label><div id="b_rows"></div><button class="btn" data-b="add" style="width:100%;margin:6px 0 14px">${ic('plus')} ${esc(t('addField'))}</button><button class="btn primary" data-b="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`, { wide: true });
 
   const prevCols = i => rows.slice(0, i).filter(r => r.label.trim() && r.type !== 'file').map(r => r.label.trim());
   const fillCols = sel => { const cur = sel.value, i = +sel.closest('[data-i]').dataset.i; sel.innerHTML = `<option value="">${esc(sel.dataset.ph || '—')}</option>${sel.dataset.today ? `<option value="__today">📅 ${esc(L('Today', 'اليوم'))}</option>` : ''}${prevCols(i).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}`; sel.value = cur; };
-  const sample = () => { const d = {}, ck = rows.filter(r => r.label.trim()).map(r => r.label.trim()); rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; d[key] = r.type === 'date' ? new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10) : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d, ck) : r.type === 'checkbox' ? 1 : 'abc'; }); return d; };
-  const prevCalc = i => { const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; } const sm = sample(), v = calcVal(r.calc, sm, rows.filter(x => x.label.trim()).map(x => x.label.trim())); el.style.color = v === '' ? 'var(--err)' : 'var(--ok)'; el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v; };
+  const sample = () => { const d = {}; rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; d[key] = r.type === 'date' ? new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10) : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d) : r.type === 'checkbox' ? 1 : 'abc'; }); return d; };
+  const prevCalc = i => { const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; } const v = calcVal(r.calc, sample()); el.style.color = v === '' ? 'var(--err)' : 'var(--ok)'; el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v; };
   const ins = (inp, txt, back = 0) => { const a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a; inp.value = inp.value.slice(0, a) + txt + inp.value.slice(z); const pos = a + txt.length - back; inp.focus(); inp.setSelectionRange(pos, pos); inp.dispatchEvent(new Event('input', { bubbles: true })); };
   const calcBox = (r, i) => `<div style="margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--line,#475569)">
-      <input class="inp" data-p="calc" dir="ltr" placeholder="=Qty*Price    |    =D2-E2    |    =DATEDIF(Start, End, &quot;d&quot;)    |    =[Total Fee]*2" value="${esc(r.calc || '')}">
+      <input class="inp" data-p="calc" dir="ltr" placeholder="=Qty*Price    |    =DATEDIF(Start, End, &quot;d&quot;)    |    =[Total Fee]*2" value="${esc(r.calc || '')}">
       <div data-prev class="muted" style="font-size:12px;margin:6px 0"></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         <select class="inp" data-cols data-ins style="flex:1;min-width:130px" data-ph="${esc(L('＋ Column…', '＋ أدخل عمود…'))}"></select>
@@ -1054,13 +1049,6 @@ window.addEventListener('online', () => { S.online = true; renderStatus(); flush
 window.addEventListener('offline', () => { S.online = false; renderStatus(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) { flush(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
-
-/* ----------------------------- splash screen (index.html #splash) ----------------------------- */
-function hideSplash() {
-  const sp = document.getElementById('splash'); if (!sp || sp._h) return; sp._h = 1;
-  setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 700); }, Math.max(0, 600 - (Date.now() - (window.__t0 || 0))));
-}
-setTimeout(hideSplash, 8000); // safety net: never leave the splash up forever
 
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
