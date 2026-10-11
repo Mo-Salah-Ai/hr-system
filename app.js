@@ -5,6 +5,9 @@
    ============================================================================= */
 const CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbxwcwPeU0Yyov_7ijEEuzOwc3QpFf2R5vd4O7-bb51yheahTp3P88kihYhgjpBDOCK6bA/exec',   // Apps Script Web App /exec URL
+  APP_NAME: 'HR Ops',             // ← اسم النظام (إنجليزي) — عدّله من هنا
+  APP_NAME_AR: 'نظام العمليات',    // ← اسم النظام (عربي)
+  LOGO: '🧭',                     // ← اللوجو: إيموجي أو رابط صورة https://...
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -27,7 +30,7 @@ const fullTime = ms => ms ? new Date(ms).toLocaleString([], { dateStyle: 'short'
 /* ----------------------------- i18n ----------------------------- */
 const I18N = {
   en: {
-    appName: 'HR Ops', tagline: 'Recruitment & staffing platform', signIn: 'Sign in', username: 'Username', password: 'Password', login: 'Log in',
+    appName: 'HR Ops', tagline: 'Recruitment & staffing platform', settings: 'Settings', signIn: 'Sign in', username: 'Username', password: 'Password', login: 'Log in',
     invalid: 'Invalid username or password', attemptsLeft: n => `${n} attempt(s) left before lockout`, lockedFor: s => `Too many attempts. Try again in ${s}`,
     disabled: 'This account is disabled', logout: 'Log out', search: 'Search…', all: 'All', add: 'Add', save: 'Save', cancel: 'Cancel', del: 'Delete', edit: 'Edit',
     saved: 'Saved', savedOffline: 'Saved on this device — will sync automatically', deleted: 'Deleted', undo: 'Undo', synced: 'Synchronized', syncing: 'Syncing…',
@@ -49,7 +52,7 @@ const I18N = {
     nothingPending: 'Nothing is waiting to sync', discardConfirm: 'Discard this unsynced change?', syncFailed: 'Sync failed'
   },
   ar: {
-    appName: 'نظام العمليات', tagline: 'منصة التوظيف والاستقدام', signIn: 'تسجيل الدخول', username: 'اسم المستخدم', password: 'كلمة المرور', login: 'دخول',
+    appName: 'نظام العمليات', tagline: 'منصة التوظيف والاستقدام', settings: 'الإعدادات', signIn: 'تسجيل الدخول', username: 'اسم المستخدم', password: 'كلمة المرور', login: 'دخول',
     invalid: 'اسم المستخدم أو كلمة المرور غير صحيحة', attemptsLeft: n => `متبقي ${n} محاولة قبل الإيقاف المؤقت`, lockedFor: s => `محاولات كثيرة. حاول بعد ${s}`,
     disabled: 'هذا الحساب معطّل', logout: 'تسجيل الخروج', search: 'بحث…', all: 'الكل', add: 'إضافة', save: 'حفظ', cancel: 'إلغاء', del: 'حذف', edit: 'تعديل',
     saved: 'تم الحفظ', savedOffline: 'تم الحفظ على جهازك — سيتم المزامنة تلقائياً', deleted: 'تم الحذف', undo: 'تراجع', synced: 'متزامن', syncing: 'جارٍ المزامنة…',
@@ -75,12 +78,17 @@ const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', d
   ar: { text: 'نص', longtext: 'نص طويل', number: 'رقم', date: 'تاريخ', datetime: 'تاريخ ووقت', select: 'قائمة', multiselect: 'اختيار متعدد', checkbox: 'مربع اختيار', phone: 'هاتف', email: 'بريد', file: 'رفع ملف', calc: 'محسوب' } };
 const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create'];
 
-const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
+const S = { lang: 'en', settings: {}, dashOpen: true, theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
   online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null };
 const t = (k, ...a) => { const v = (I18N[S.lang] || I18N.en)[k] ?? I18N.en[k] ?? k; return typeof v === 'function' ? v(...a) : v; };
 const fl = f => (S.lang === 'ar' && f.ar) ? f.ar : f.label;
 const tl = tb => (S.lang === 'ar' && tb.ar) ? tb.ar : tb.label;
 const typeName = k => (T_TYPES[S.lang] || T_TYPES.en)[k] || k;
+const sysName = () => S.lang === 'ar' ? (S.settings.nameAr || CONFIG.APP_NAME_AR) : (S.settings.name || CONFIG.APP_NAME);
+const logoHtml = (cls = '') => {
+  const l = (S.settings.logo || CONFIG.LOGO || '🧭').trim();
+  return /^https?:\/\//.test(l) ? `<img src="${esc(l)}" class="logoimg ${cls}" alt="">` : `<div class="logo ${cls}">${esc(l)}</div>`;
+};
 
 /* ----------------------------- icons ----------------------------- */
 const ICONS = {
@@ -93,7 +101,8 @@ const ICONS = {
   grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', check: '<path d="M20 6 9 17l-5-5"/>', upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
   spin: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>'
+  sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'
 };
 const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 
@@ -225,7 +234,7 @@ async function pullAll() { await Promise.all(S.tabs.map(tb => pullTab(tb.name).c
 async function enqueue(op) {
   const q = await DB.all('queue');
   const same = q.find(o => o.tab === op.tab && o.id === op.id);
-  if (op.type === 'update' && same && (same.type === 'create' || same.type === 'update')) { same.data = { ...same.data, ...op.data }; await DB.put('queue', same); }
+  if (op.type === 'update' && same && (same.type === 'create' || same.type === 'update')) { same.data = { ...same.data, ...op.data }; same.base = { ...(same.base || {}), ...(op.base || {}) }; await DB.put('queue', same); }
   else if (op.type === 'delete' && same && same.type === 'create') { for (const o of q.filter(o => o.tab === op.tab && o.id === op.id)) await DB.del('queue', o.qid); }
   else if (op.type === 'delete' && same) { for (const o of q.filter(o => o.tab === op.tab && o.id === op.id)) await DB.del('queue', o.qid); await DB.put('queue', op); }
   else await DB.put('queue', op);
@@ -263,6 +272,9 @@ async function flush() {
         if (op.type === 'delete') { /* already removed locally */ }
         else if (r.record) { const cur = dataOf(op.tab).get(op.id); const later = (await DB.all('queue')).some(o => o.tab === op.tab && o.id === op.id); if (!later || !cur) await putLocal(op.tab, mkServerRec(r.record)); else { cur._srv = mkServerRec(r.record)._srv; await putLocal(op.tab, cur); } }
         if (r.status === 'conflict') showConflict(op, r);
+      } else if (r.error === 'server_error') {
+        const { qid, ...rest } = op; await enqueue({ ...rest, opId: uid(), ts: Date.now() });
+        S.syncError = r.message; toast(`${t('saveFail')} — ${r.message}`, 'err', { ms: 6000 });
       } else {
         if (r.error === 'forbidden') toast(r.message || t('saveFail'), 'err');
         else toast(`${t('saveFail')}: ${r.message}`, 'err', { ms: 6000 });
@@ -424,15 +436,38 @@ async function refresh() {
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
   closeSheet(true);
-  $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
-      <div style="display:flex;gap:6px"><button type="button" class="btn icon ghost" data-act="theme">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button><button type="button" class="btn icon ghost" data-act="lang">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button></div></div>
-    <h1 style="margin:0 0 4px;font-size:26px;font-weight:700">${esc(t('appName'))}</h1><p class="muted" style="margin:0 0 22px">${esc(t('tagline'))}</p>
-    <div class="fld"><label class="lab">${esc(t('username'))}</label><input class="inp" id="lu" name="username" autocomplete="username" autocapitalize="none" required></div>
-    <div class="fld"><label class="lab">${esc(t('password'))}</label><input class="inp" id="lp" name="password" type="password" autocomplete="current-password" required></div>
-    <div id="lmsg" style="min-height:22px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--err)">${esc(msg || '')}</div>
-    <button class="btn primary" id="lbtn" style="width:100%;padding:13px">${esc(t('login'))}</button></form></div>`;
+  document.title = sysName() + ' ERP';
+  $('#app').innerHTML = `<div class="login"><div class="login-card glass">
+    <div class="login-side">
+      ${logoHtml('lg')}
+      <h1>${esc(sysName())}</h1>
+      <p class="muted" style="margin:0;font-size:15px;line-height:1.7">${esc(t('tagline'))}</p>
+      <div style="display:flex;flex-direction:column;gap:13px;margin-top:18px">
+        <div class="feat"><span class="fi-ic">${ic('sync')}</span><span>${S.lang === 'ar' ? 'يعمل بدون إنترنت ويُزامن تلقائياً عند عودة الاتصال' : 'Works offline and syncs automatically when back online'}</span></div>
+        <div class="feat"><span class="fi-ic">${ic('grid')}</span><span>${S.lang === 'ar' ? 'لوحة تحكم وإحصائيات لكل صفحة حسب صلاحياتك' : 'Dashboards & stats for every tab you can access'}</span></div>
+        <div class="feat"><span class="fi-ic">${ic('file')}</span><span>${S.lang === 'ar' ? 'تصدير أي صفحة إلى Excel مرتب بضغطة واحدة' : 'One-click Excel export for any tab'}</span></div>
+        <div class="feat"><span class="fi-ic">${ic('shield')}</span><span>${S.lang === 'ar' ? 'صلاحيات دقيقة وسجل تدقيق كامل' : 'Granular permissions & full audit trail'}</span></div>
+      </div>
+    </div>
+    <div class="login-form">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><span class="tag">${esc(t('signIn'))}</span>
+        <div style="display:flex;gap:6px"><button type="button" class="btn icon ghost" data-act="theme">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button><button type="button" class="btn icon ghost" data-act="lang">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button></div></div>
+      <h2 style="margin:0 0 4px;font-size:23px;font-weight:800">${esc(t('signIn'))}</h2>
+      <p class="muted" style="margin:0 0 22px;font-size:14px">${esc(sysName())} — ${esc(t('tagline'))}</p>
+      <form id="loginForm" autocomplete="on">
+        <div class="fld"><label class="lab" for="lu">${esc(t('username'))}</label>
+          <div style="position:relative"><span style="position:absolute;top:12px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('edit')}</span>
+            <input class="inp" id="lu" name="username" autocomplete="username" autocapitalize="none" required style="padding-inline-start:42px"></div></div>
+        <div class="fld"><label class="lab" for="lp">${esc(t('password'))}</label>
+          <div style="position:relative"><span style="position:absolute;top:12px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('lock')}</span>
+            <input class="inp" id="lp" name="password" type="password" autocomplete="current-password" required style="padding-inline-start:42px;padding-inline-end:44px">
+            <button type="button" class="btn icon ghost" id="pwEye" style="position:absolute;top:4px;inset-inline-end:4px;padding:6px" title="show / hide">${ic('eye')}</button></div></div>
+        <div id="lmsg" style="min-height:22px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--err)">${esc(msg || '')}</div>
+        <button class="btn primary" id="lbtn" style="width:100%;padding:13px">${esc(t('login'))}</button>
+      </form>
+    </div></div></div>`;
   const last = localStorage.getItem('hr_lastuser'); if (last) $('#lu').value = last;
+  $('#pwEye').onclick = () => { const p = $('#lp'); p.type = p.type === 'password' ? 'text' : 'password'; };
   $('#loginForm').addEventListener('submit', onLogin);
 }
 let lockTimer;
@@ -450,7 +485,7 @@ async function onLogin(e) {
       let s = err.data.retryAfter || 300; clearInterval(lockTimer); btn.disabled = true;
       const tick = () => { if (s <= 0) { clearInterval(lockTimer); msg.textContent = ''; btn.disabled = false; return; } msg.textContent = '🔒 ' + t('lockedFor', `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`); s--; };
       tick(); lockTimer = setInterval(tick, 1000);
-    } else if (err.code === 'invalid') { msg.textContent = t('invalid') + (err.data.attemptsLeft != null ? ' — ' + t('attemptsLeft', err.data.attemptsLeft) : ''); $('#loginForm .box, .box').animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 200); }
+    } else if (err.code === 'invalid') { msg.textContent = t('invalid') + (err.data.attemptsLeft != null ? ' — ' + t('attemptsLeft', err.data.attemptsLeft) : ''); $('.login-card').animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 200); }
     else if (err.code === 'disabled') msg.textContent = t('disabled');
     else msg.textContent = err.code === 'network' ? t('networkErr') : err.message;
   }
@@ -466,7 +501,7 @@ function renderApp() {
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
-    <aside class="side glass hidden lg:flex"><div style="display:flex;align-items:center;gap:10px;padding:6px 8px 16px"><div class="logo" style="width:40px;height:40px;font-size:20px;border-radius:14px">🧭</div><b style="font-size:17px">${esc(t('appName'))}</b></div>
+    <aside class="side glass hidden lg:flex"><div style="display:flex;align-items:center;gap:10px;padding:6px 8px 16px">${logoHtml('sm')}<b style="font-size:17px">${esc(sysName())}</b></div>
       ${items.map(i => `<button class="navi ${i.on ? 'on' : ''}" data-act="nav" data-id="${esc(i.id)}"><span class="em">${i.em}</span><span>${esc(i.label)}</span></button>`).join('')}</aside>
     <div class="main-col"><header class="topbar glass">
       <div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="hdTitle"></div><div class="muted" style="font-size:12px">${esc(S.user.name || S.user.username)}</div></div>
@@ -491,17 +526,20 @@ function renderMain() {
 /* ----------------------------- tab view ----------------------------- */
 function renderTabShell() {
   const main = $('#main'), fab = $('#fab'), sc = schemaOf(S.view.tab);
-  if (!sc) { $('#hdTitle').textContent = t('appName'); fab.style.display = 'none'; main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
+  if (!sc) { $('#hdTitle').textContent = sysName(); fab.style.display = 'none'; main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
   $('#hdTitle').textContent = `${sc.icon || ''} ${tl(sc)}`; fab.style.display = canR(sc, 'w') ? 'flex' : 'none';
   const sel = vf(sc).find(f => f.type === 'select' && f.options?.length); const lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards');
   main.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px"><div style="position:relative;flex:1"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)">${ic('search')}</span>
       <input id="q" class="inp" style="padding-inline-start:42px" placeholder="${esc(t('search'))}" autocomplete="off" value="${esc(S.search)}"><div id="sugg" class="sugg glass" style="display:none"></div></div>
+      <button class="btn icon" data-act="export" title="Excel">⬇️</button>
       <button class="btn icon" data-act="layout" title="layout">${ic(lay === 'table' ? 'grid' : 'list')}</button></div>
+    <div id="dash"></div>
     ${sel ? `<div class="chips" id="fchips" style="margin-bottom:14px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px"><button class="chip ${!S.filter[sc.name] ? 'on' : ''}" data-f="">${esc(t('all'))}</button>${sel.options.map(o => `<button class="chip ${S.filter[sc.name] === o ? 'on' : ''}" data-f="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}
     <div id="list"></div>`;
   const q = $('#q'); q.addEventListener('input', debounce(() => { S.search = q.value; S.limit = CONFIG.PAGE; renderList(); renderSugg(); }, 80));
   q.addEventListener('focus', renderSugg); q.addEventListener('blur', () => setTimeout(() => { const s = $('#sugg'); if (s) s.style.display = 'none'; }, 180));
   renderList();
+  renderDash(sc);
 }
 function rowsFor(sc) {
   const q = S.search.trim().toLowerCase().split(/\s+/).filter(Boolean), flt = S.filter[sc.name], sel = vf(sc).find(f => f.type === 'select' && f.options?.length);
@@ -512,6 +550,63 @@ function hl(s, q) {
   s = esc(s); const tk = q.trim().split(/\s+/).filter(Boolean); if (!tk.length) return s;
   return s.replace(new RegExp('(' + tk.map(k => escRe(esc(k))).join('|') + ')', 'gi'), '<mark class="mk">$1</mark>');
 }
+/* ----------------------------- per-tab dashboard + Excel export ----------------------------- */
+function statCard(label, val, color) { return `<div class="stat"><small>${esc(label)}</small><b style="color:${color || 'var(--text)'}">${esc(val)}</b></div>`; }
+function renderDash(sc) {
+  const box = $('#dash'); if (!box) return;
+  if (!S.dashOpen) { box.innerHTML = `<button class="btn ghost" data-act="dash" style="width:100%;margin-bottom:12px;justify-content:flex-start">${ic('grid')} ${S.lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</button>`; return; }
+  const rows = [...dataOf(sc.name).values()];
+  const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+  const todayN = rows.filter(r => (r._updated || 0) >= startToday.getTime()).length;
+  const mine = rows.filter(r => r._by === S.user.username).length;
+  const pend = rows.filter(r => r._pending).length;
+  const selF = vf(sc).filter(f => f.type === 'select' && (f.options || []).length && !f.lookup);
+  const numF = vf(sc).filter(f => f.type === 'number' || f.type === 'calc');
+  const tf = vf(sc)[0];
+  const latest = rows.slice().sort((a, b) => (b._updated || 0) - (a._updated || 0)).slice(0, 5);
+  let h = `<div class="card glass" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><b>📊 ${S.lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'} · ${esc(tl(sc))}</b><button class="btn icon ghost" data-act="dash" title="collapse">${ic('x')}</button></div>
+    <div class="statgrid">${statCard(S.lang === 'ar' ? 'إجمالي السجلات' : 'Total records', rows.length)}
+      ${statCard(S.lang === 'ar' ? 'تعديلات اليوم' : 'Updated today', todayN, 'var(--accent)')}
+      ${statCard(S.lang === 'ar' ? 'أضفتها أنا' : 'Added by me', mine, 'var(--accent2)')}
+      ${pend ? statCard(S.lang === 'ar' ? 'بانتظار المزامنة' : 'Pending sync', pend, 'var(--warn)') : ''}</div>`;
+  selF.slice(0, 3).forEach(f => {
+    const cnt = {}; rows.forEach(r => { const v = r[f.key]; if (v) cnt[v] = (cnt[v] || 0) + 1; });
+    const entries = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    if (entries.length) h += `<div style="margin-top:12px"><small class="muted" style="font-weight:700">${esc(fl(f))}</small><div class="statgrid" style="margin-top:6px">${entries.map(([k, v]) => statCard(k, v, 'var(--accent)')).join('')}</div></div>`;
+  });
+  if (numF.length) h += `<div class="statgrid" style="margin-top:12px">${numF.map(f => statCard((S.lang === 'ar' ? 'مجموع ' : 'Total ') + fl(f), rows.reduce((a, r) => a + (Number(r[f.key]) || 0), 0).toLocaleString())).join('')}</div>`;
+  if (latest.length && tf) h += `<div style="margin-top:12px"><small class="muted" style="font-weight:700">${S.lang === 'ar' ? 'آخر السجلات' : 'Latest records'}</small>${latest.map(r => `<div class="urow" style="padding:7px 0;cursor:pointer" data-act="open" data-id="${esc(r._id)}"><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(displayVal(tf, r[tf.key]) || '—')}</b>${r._pending ? '<span class="dotp"></span>' : ''}<span class="muted" style="font-size:12px;flex:none">${esc(relTime(r._updated || 0))}</span></div>`).join('')}</div>`;
+  box.innerHTML = h + '</div>';
+}
+function exportExcel() {
+  const sc = schemaOf(S.view.tab); if (!sc) return;
+  if (typeof XLSX === 'undefined') { toast(S.lang === 'ar' ? 'مكتبة Excel لم تُحمّل بعد — افتح التطبيق وأنت متصل مرة واحدة' : 'Excel library not loaded yet', 'err'); return; }
+  const rows = rowsFor(sc), cols = vf(sc);
+  if (!rows.length) { toast(t('noData'), 'warn'); return; }
+  const head = cols.map(c => (S.lang === 'ar' && c.ar) ? c.ar : c.label);
+  const aoa = [head];
+  rows.forEach(r => aoa.push(cols.map(c => {
+    const v = r[c.key];
+    if (Array.isArray(v)) return v.map(x => (x && x.name) || x).filter(Boolean).join(', ');
+    if (typeof v === 'boolean') return v ? (S.lang === 'ar' ? 'نعم' : 'Yes') : (S.lang === 'ar' ? 'لا' : 'No');
+    return v === '' || v == null ? '' : v;
+  })));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = cols.map((c, i) => ({ wch: Math.min(42, Math.max(14, head[i].length + 4, ...aoa.slice(1, 80).map(r => String(r[i] ?? '').length + 2))) }));
+  ws['!autofilter'] = { ref: ws['!ref'] };
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = XLSX.utils.encode_cell({ r: 0, c: C });
+    if (ws[addr]) ws[addr].s = { font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 12 }, fill: { fgColor: { rgb: 'FF0F172A' } }, alignment: { horizontal: 'center', vertical: 'center' } };
+  }
+  const wb = XLSX.utils.book_new();
+  if (S.lang === 'ar') { try { wb.Workbook = { Views: [{ RTL: true }] }; } catch (e) {} }
+  XLSX.utils.book_append_sheet(wb, ws, sc.name.slice(0, 28));
+  XLSX.writeFile(wb, sc.name + '-' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  toast(S.lang === 'ar' ? 'تم تصدير ' + rows.length + ' سجل إلى Excel' : 'Exported ' + rows.length + ' record(s) to Excel', 'ok');
+}
+
 function renderSugg() {
   const box = $('#sugg'); if (!box) return; const sc = schemaOf(S.view.tab); const q = S.search.trim();
   if (!q || !sc) { box.style.display = 'none'; return; }
@@ -750,9 +845,9 @@ function openNewFormWith(tab, draft, rid) {
 
 /* ----------------------------- admin dashboard ----------------------------- */
 function renderAdmin() {
-  const sec = S.view.admin, names = { overview: 'overview', users: 'users', audit: 'audit', tabs: 'tabs' };
+  const sec = S.view.admin, names = { overview: 'overview', users: 'users', audit: 'audit', tabs: 'tabs', settings: 'settings' };
   $('#main').innerHTML = `<div class="sub">${Object.keys(names).map(k => `<button class="btn ${sec === k ? 'primary' : ''}" data-act="adm" data-id="${k}">${esc(t(k === 'audit' ? 'audit' : k))}</button>`).join('')}</div><div id="adm"></div>`;
-  ({ overview: admOverview, users: admUsers, audit: admAudit, tabs: admTabs }[sec] || admOverview)();
+  ({ overview: admOverview, users: admUsers, audit: admAudit, tabs: admTabs, settings: admSettings }[sec] || admOverview)();
 }
 const adminErr = e => { if (e.code !== 'auth') toast(e.code === 'network' ? t('networkErr') : e.message, 'err'); };
 function presenceText(u) { return u.online ? t('onlineSince', hhmm(u.since)) : t('lastSeen', relTime(u.lastSeen)); }
@@ -850,6 +945,26 @@ function openTabBuilder() {
   });
 }
 
+async function admSettings() {
+  const box = $('#adm'), s = S.settings;
+  box.innerHTML = `<div class="card glass" style="max-width:540px">
+    <b style="font-size:16px">⚙️ ${esc(t('settings'))}</b>
+    <p class="muted" style="font-size:13px;margin:8px 0 16px;line-height:1.8">${S.lang === 'ar' ? 'هذه الإعدادات محفوظة على هذا المتصفح. لو عايز تغيّرها لكل المستخدمين افتراضياً، عدّل القيم في أول ملف app.js (APP_NAME / APP_NAME_AR / LOGO).' : 'These settings are saved on this browser. To change the defaults for everyone, edit CONFIG at the top of app.js (APP_NAME / APP_NAME_AR / LOGO).'}</p>
+    <div class="fld"><label class="lab">${S.lang === 'ar' ? 'اسم النظام (إنجليزي)' : 'System name (English)'}</label><input class="inp" id="st_name" value="${esc(s.name || CONFIG.APP_NAME)}"></div>
+    <div class="fld"><label class="lab">${S.lang === 'ar' ? 'اسم النظام (عربي)' : 'System name (Arabic)'}</label><input class="inp" id="st_nameAr" value="${esc(s.nameAr || CONFIG.APP_NAME_AR)}"></div>
+    <div class="fld"><label class="lab">${S.lang === 'ar' ? 'اللوجو — إيموجي أو رابط صورة (https://…)' : 'Logo — emoji or image URL (https://…)'}</label><input class="inp" id="st_logo" dir="ltr" value="${esc(s.logo || CONFIG.LOGO)}"></div>
+    <div style="display:flex;gap:12px;align-items:center;margin:4px 0 18px">${logoHtml('sm')}<b id="st_prev">${esc(sysName())}</b></div>
+    <div style="display:flex;gap:10px"><button class="btn" data-st="reset">${S.lang === 'ar' ? 'إعادة الضبط' : 'Reset'}</button><button class="btn primary" data-st="save" style="flex:1">${ic('check')} ${esc(t('save'))}</button></div>
+  </div>`;
+  box.onclick = async e => {
+    const b = e.target.closest('[data-st]'); if (!b) return;
+    if (b.dataset.st === 'reset') { localStorage.removeItem('hr_settings'); S.settings = {}; toast(t('saved')); renderApp(); return; }
+    S.settings = { name: $('#st_name').value.trim(), nameAr: $('#st_nameAr').value.trim(), logo: $('#st_logo').value.trim() };
+    localStorage.setItem('hr_settings', JSON.stringify(S.settings));
+    document.title = sysName() + ' ERP'; toast(t('saved')); renderApp();
+  };
+}
+
 /* ----------------------------- global actions ----------------------------- */
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) {
@@ -865,6 +980,8 @@ document.addEventListener('click', async e => {
     case 'open': { const sg = $('#sugg'); if (sg) sg.style.display = 'none'; openRecord(id); break; }
     case 'more': S.limit += CONFIG.PAGE; renderList(); break;
     case 'layout': S.layout = (S.layout || (innerWidth >= 1024 ? 'table' : 'cards')) === 'table' ? 'cards' : 'table'; renderTabShell(); break;
+    case 'dash': S.dashOpen = !S.dashOpen; renderDash(schemaOf(S.view.tab)); break;
+    case 'export': exportExcel(); break;
     case 'alerts': S.view = { ...S.view, kind: 'admin', admin: 'overview' }; renderApp(); break;
     case 'adm': S.view.admin = id; renderApp(); break;
     case 'ack': try { await api('admin_ackAlert', { id }); admOverview(); } catch (er) { adminErr(er); } break;
@@ -882,6 +999,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
   S.lang = localStorage.getItem('hr_lang') || (navigator.language || '').startsWith('ar') ? (localStorage.getItem('hr_lang') || 'ar') : 'en';
+  try { S.settings = JSON.parse(localStorage.getItem('hr_settings') || '{}'); } catch (e) { S.settings = {}; }
+  document.title = sysName() + ' ERP';
   S.theme = localStorage.getItem('hr_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); applyTheme(); applyLang();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   try { await DB.open(); } catch (e) { $('#app').innerHTML = '<p style="padding:30px">IndexedDB unavailable in this browser mode.</p>'; return; }
