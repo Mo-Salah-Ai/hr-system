@@ -4,10 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxwcwPeU0Yyov_7ijEEuzOwc3QpFf2R5vd4O7-bb51yheahTp3P88kihYhgjpBDOCK6bA/exec',   // Apps Script Web App /exec URL
-  APP_NAME: 'HR Ops',             // ← اسم النظام (إنجليزي) — عدّله من هنا
-  APP_NAME_AR: 'نظام العمليات',    // ← اسم النظام (عربي)
-  LOGO: '🧭',                     // ← اللوجو: إيموجي أو رابط صورة https://...
+  API_URL: 'https://script.google.com/macros/s/AKfycbwCXgPmO1ggMLbRJIImlfCHVJ0Ngf3WshWVsen7LuuOBUALlPqrFbnqRvCEQzXnpLKyag/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -30,7 +27,7 @@ const fullTime = ms => ms ? new Date(ms).toLocaleString([], { dateStyle: 'short'
 /* ----------------------------- i18n ----------------------------- */
 const I18N = {
   en: {
-    appName: 'HR Ops', tagline: 'Recruitment & staffing platform', settings: 'Settings', signIn: 'Sign in', username: 'Username', password: 'Password', login: 'Log in',
+    appName: 'HR Ops', tagline: 'Recruitment & staffing platform', signIn: 'Sign in', username: 'Username', password: 'Password', login: 'Log in',
     invalid: 'Invalid username or password', attemptsLeft: n => `${n} attempt(s) left before lockout`, lockedFor: s => `Too many attempts. Try again in ${s}`,
     disabled: 'This account is disabled', logout: 'Log out', search: 'Search…', all: 'All', add: 'Add', save: 'Save', cancel: 'Cancel', del: 'Delete', edit: 'Edit',
     saved: 'Saved', savedOffline: 'Saved on this device — will sync automatically', deleted: 'Deleted', undo: 'Undo', synced: 'Synchronized', syncing: 'Syncing…',
@@ -48,11 +45,18 @@ const I18N = {
     newRecord: 'New record', total: 'total', rows: 'rows', columns: 'Columns', icon: 'Icon', selectUser: 'Pick a user', allUsers: 'All', allTabs: 'All tabs', allActions: 'All actions',
     tabCreated: 'Tab created — it is live for everyone', userSaved: 'User saved', pw: 'Password (min 8 chars)', pwKeep: 'Leave empty to keep current', status: 'Status', switchedChat: 'Chat entry',
     permsChanged: 'Your permissions changed — reloading', saveFail: 'Could not save', confirmDel: 'Delete this record?', openFile: 'Open', fileOffline: 'File is stored on this device until you are online', mic: 'Voice input',
+    dashboard: 'Dashboard', records: 'Records', sum: 'Σ Total', today: 'Today', pending: 'Pending', attachments: 'Attachments', recentRecords: 'Recent records',
+    exportExcel: 'Export Excel', exportDone: 'Excel file downloaded', allTabsRead: 'Access to ALL tabs (read-only)', settings: 'Settings',
+    branding: 'Branding', brandingHint: 'Logo & name shown on the splash screen, login and sidebar', appName: 'App name', tagline: 'Tagline',
+    logoEmoji: 'Logo (emoji)', logoUrl: 'Logo image URL (optional)', loginHint: 'Sign in to continue to your workspace',
+    secureLogin: 'Protected login · repeated wrong passwords lock the account',
+    feat1: 'Offline-first: capture data anywhere, it syncs automatically', feat2: 'Tabs & dashboards shaped by your permissions',
+    feat3: 'Chat-style or form data entry, with file uploads', feat4: 'Full audit trail, security alerts & Excel export',
     syncNow: 'Sync now', syncStatus: 'Sync status', syncVerified: (n, k) => `Verified: ${n} record(s) in ${k} page(s) match the server`, lastSyncAt: x => `Last successful sync: ${x}`,
     nothingPending: 'Nothing is waiting to sync', discardConfirm: 'Discard this unsynced change?', syncFailed: 'Sync failed'
   },
   ar: {
-    appName: 'نظام العمليات', tagline: 'منصة التوظيف والاستقدام', settings: 'الإعدادات', signIn: 'تسجيل الدخول', username: 'اسم المستخدم', password: 'كلمة المرور', login: 'دخول',
+    appName: 'نظام العمليات', tagline: 'منصة التوظيف والاستقدام', signIn: 'تسجيل الدخول', username: 'اسم المستخدم', password: 'كلمة المرور', login: 'دخول',
     invalid: 'اسم المستخدم أو كلمة المرور غير صحيحة', attemptsLeft: n => `متبقي ${n} محاولة قبل الإيقاف المؤقت`, lockedFor: s => `محاولات كثيرة. حاول بعد ${s}`,
     disabled: 'هذا الحساب معطّل', logout: 'تسجيل الخروج', search: 'بحث…', all: 'الكل', add: 'إضافة', save: 'حفظ', cancel: 'إلغاء', del: 'حذف', edit: 'تعديل',
     saved: 'تم الحفظ', savedOffline: 'تم الحفظ على جهازك — سيتم المزامنة تلقائياً', deleted: 'تم الحذف', undo: 'تراجع', synced: 'متزامن', syncing: 'جارٍ المزامنة…',
@@ -70,6 +74,13 @@ const I18N = {
     newRecord: 'سجل جديد', total: 'إجمالي', rows: 'صف', columns: 'الأعمدة', icon: 'أيقونة', selectUser: 'اختر مستخدماً', allUsers: 'الكل', allTabs: 'كل الصفحات', allActions: 'كل الإجراءات',
     tabCreated: 'تم إنشاء الصفحة — أصبحت متاحة للجميع', userSaved: 'تم حفظ المستخدم', pw: 'كلمة المرور (٨ أحرف على الأقل)', pwKeep: 'اتركها فارغة للإبقاء على الحالية', status: 'الحالة', switchedChat: 'إدخال بالمحادثة',
     permsChanged: 'تغيّرت صلاحياتك — جارٍ التحديث', saveFail: 'تعذّر الحفظ', confirmDel: 'حذف هذا السجل؟', openFile: 'فتح', fileOffline: 'الملف محفوظ على جهازك حتى تتصل بالإنترنت', mic: 'إدخال صوتي',
+    dashboard: 'لوحة المعلومات', records: 'السجلات', sum: 'Σ المجموع', today: 'اليوم', pending: 'معلّق', attachments: 'المرفقات', recentRecords: 'أحدث السجلات',
+    exportExcel: 'تصدير Excel', exportDone: 'تم تنزيل ملف Excel', allTabsRead: 'الوصول لكل الصفحات (قراءة فقط)', settings: 'الإعدادات',
+    branding: 'هوية النظام', brandingHint: 'الشعار والاسم في شاشة البداية وشاشة الدخول والقائمة الجانبية', appName: 'اسم النظام', tagline: 'الوصف المختصر',
+    logoEmoji: 'الشعار (رمز)', logoUrl: 'رابط صورة الشعار (اختياري)', loginHint: 'سجّل الدخول للمتابعة إلى مساحة العمل',
+    secureLogin: 'دخول محمي · المحاولات الخاطئة المتكررة تقفل الحساب',
+    feat1: 'يعمل بدون إنترنت: سجّل البيانات في أي مكان وتتم المزامنة تلقائياً', feat2: 'صفحات ولوحات معلومات تُبنى حسب صلاحياتك',
+    feat3: 'إدخال بالمحادثة أو بالنموذج، مع رفع الملفات', feat4: 'سجل تدقيق كامل وتنبيهات أمان وتصدير Excel',
     syncNow: 'مزامنة الآن', syncStatus: 'حالة المزامنة', syncVerified: (n, k) => `تم التحقق: ${n} سجل في ${k} صفحة مطابق للسيرفر`, lastSyncAt: x => `آخر مزامنة ناجحة: ${x}`,
     nothingPending: 'لا يوجد شيء في انتظار المزامنة', discardConfirm: 'تجاهل هذا التعديل غير المتزامن؟', syncFailed: 'فشلت المزامنة'
   }
@@ -78,17 +89,19 @@ const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', d
   ar: { text: 'نص', longtext: 'نص طويل', number: 'رقم', date: 'تاريخ', datetime: 'تاريخ ووقت', select: 'قائمة', multiselect: 'اختيار متعدد', checkbox: 'مربع اختيار', phone: 'هاتف', email: 'بريد', file: 'رفع ملف', calc: 'محسوب' } };
 const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create'];
 
-const S = { lang: 'en', settings: {}, dashOpen: true, theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
-  online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null };
+const BRAND = { name: { en: 'HR Ops', ar: 'نظام العمليات' }, tag: { en: 'Recruitment & staffing platform', ar: 'منصة التوظيف والاستقدام' }, logo: '🧭', logoImg: '' };
+function brandName() { return (S.lang === 'ar' && BRAND.name.ar) ? BRAND.name.ar : BRAND.name.en; }
+function brandTag() { return (S.lang === 'ar' && BRAND.tag && BRAND.tag.ar) ? BRAND.tag.ar : (BRAND.tag && BRAND.tag.en || ''); }
+function logoHtml(sz = '') { return BRAND.logoImg ? `<img class="logoimg ${sz === 'sm' ? 'sm' : ''}" src="${esc(BRAND.logoImg)}" alt="logo">` : `<div class="logo ${sz === 'sm' ? 'sm' : (sz === 'lg' ? 'lg' : '')}">${esc(BRAND.logo || '🧭')}</div>`; }
+function applySettings(st) { if (!st) return; if (st.name) { if (st.name.en) BRAND.name.en = st.name.en; if (st.name.ar) BRAND.name.ar = st.name.ar; } if (st.tag) { if (st.tag.en) BRAND.tag.en = st.tag.en; if (st.tag.ar) BRAND.tag.ar = st.tag.ar; } if (st.logo) BRAND.logo = st.logo; if (st.logoImg) BRAND.logoImg = st.logoImg; }
+function hideSplash() { const sp = $('#splash'); if (!sp || sp.dataset.done) return; sp.dataset.done = '1'; const wait = Math.max(0, 1100 - (Date.now() - (window.__t0 || 0))); setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 700); }, wait); }
+
+const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
+  online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null, tabView: {} };
 const t = (k, ...a) => { const v = (I18N[S.lang] || I18N.en)[k] ?? I18N.en[k] ?? k; return typeof v === 'function' ? v(...a) : v; };
 const fl = f => (S.lang === 'ar' && f.ar) ? f.ar : f.label;
 const tl = tb => (S.lang === 'ar' && tb.ar) ? tb.ar : tb.label;
 const typeName = k => (T_TYPES[S.lang] || T_TYPES.en)[k] || k;
-const sysName = () => S.lang === 'ar' ? (S.settings.nameAr || CONFIG.APP_NAME_AR) : (S.settings.name || CONFIG.APP_NAME);
-const logoHtml = (cls = '') => {
-  const l = (S.settings.logo || CONFIG.LOGO || '🧭').trim();
-  return /^https?:\/\//.test(l) ? `<img src="${esc(l)}" class="logoimg ${cls}" alt="">` : `<div class="logo ${cls}">${esc(l)}</div>`;
-};
 
 /* ----------------------------- icons ----------------------------- */
 const ICONS = {
@@ -102,7 +115,9 @@ const ICONS = {
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', check: '<path d="M20 6 9 17l-5-5"/>', upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
   spin: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>',
-  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>'
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+  dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'
 };
 const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 
@@ -234,7 +249,7 @@ async function pullAll() { await Promise.all(S.tabs.map(tb => pullTab(tb.name).c
 async function enqueue(op) {
   const q = await DB.all('queue');
   const same = q.find(o => o.tab === op.tab && o.id === op.id);
-  if (op.type === 'update' && same && (same.type === 'create' || same.type === 'update')) { same.data = { ...same.data, ...op.data }; same.base = { ...(same.base || {}), ...(op.base || {}) }; await DB.put('queue', same); }
+  if (op.type === 'update' && same && (same.type === 'create' || same.type === 'update')) { same.data = { ...same.data, ...op.data }; await DB.put('queue', same); }
   else if (op.type === 'delete' && same && same.type === 'create') { for (const o of q.filter(o => o.tab === op.tab && o.id === op.id)) await DB.del('queue', o.qid); }
   else if (op.type === 'delete' && same) { for (const o of q.filter(o => o.tab === op.tab && o.id === op.id)) await DB.del('queue', o.qid); await DB.put('queue', op); }
   else await DB.put('queue', op);
@@ -272,9 +287,6 @@ async function flush() {
         if (op.type === 'delete') { /* already removed locally */ }
         else if (r.record) { const cur = dataOf(op.tab).get(op.id); const later = (await DB.all('queue')).some(o => o.tab === op.tab && o.id === op.id); if (!later || !cur) await putLocal(op.tab, mkServerRec(r.record)); else { cur._srv = mkServerRec(r.record)._srv; await putLocal(op.tab, cur); } }
         if (r.status === 'conflict') showConflict(op, r);
-      } else if (r.error === 'server_error') {
-        const { qid, ...rest } = op; await enqueue({ ...rest, opId: uid(), ts: Date.now() });
-        S.syncError = r.message; toast(`${t('saveFail')} — ${r.message}`, 'err', { ms: 6000 });
       } else {
         if (r.error === 'forbidden') toast(r.message || t('saveFail'), 'err');
         else toast(`${t('saveFail')}: ${r.message}`, 'err', { ms: 6000 });
@@ -428,46 +440,36 @@ function stopTimers() { clearInterval(hbTimer); clearInterval(syncTimer); clearI
 
 async function refresh() {
   const b = await api('bootstrap');
-  S.user = b.user; S.tabs = b.tabs; await meta.set('user', S.user); await meta.set('schema', S.tabs);
+  S.user = b.user; S.tabs = b.tabs; if (b.settings) applySettings(b.settings); await meta.set('user', S.user); await meta.set('schema', S.tabs);
   if (!S.tabs.find(x => x.name === S.view.tab)) S.view.tab = S.tabs[0]?.name || null;
   await pullAll();
 }
 
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
-  closeSheet(true);
-  document.title = sysName() + ' ERP';
+  closeSheet(true); hideSplash();
+  const feat = (icn, k) => `<div class="feat"><span class="fi-ic">${ic(icn)}</span><span>${esc(t(k))}</span></div>`;
   $('#app').innerHTML = `<div class="login"><div class="login-card glass">
     <div class="login-side">
-      ${logoHtml('lg')}
-      <h1>${esc(sysName())}</h1>
-      <p class="muted" style="margin:0;font-size:15px;line-height:1.7">${esc(t('tagline'))}</p>
-      <div style="display:flex;flex-direction:column;gap:13px;margin-top:18px">
-        <div class="feat"><span class="fi-ic">${ic('sync')}</span><span>${S.lang === 'ar' ? 'يعمل بدون إنترنت ويُزامن تلقائياً عند عودة الاتصال' : 'Works offline and syncs automatically when back online'}</span></div>
-        <div class="feat"><span class="fi-ic">${ic('grid')}</span><span>${S.lang === 'ar' ? 'لوحة تحكم وإحصائيات لكل صفحة حسب صلاحياتك' : 'Dashboards & stats for every tab you can access'}</span></div>
-        <div class="feat"><span class="fi-ic">${ic('file')}</span><span>${S.lang === 'ar' ? 'تصدير أي صفحة إلى Excel مرتب بضغطة واحدة' : 'One-click Excel export for any tab'}</span></div>
-        <div class="feat"><span class="fi-ic">${ic('shield')}</span><span>${S.lang === 'ar' ? 'صلاحيات دقيقة وسجل تدقيق كامل' : 'Granular permissions & full audit trail'}</span></div>
-      </div>
+      <div style="display:flex;align-items:center;gap:14px">${logoHtml('lg')}<div><h1>${esc(brandName())}</h1><div class="muted" style="font-size:13.5px">${esc(brandTag())}</div></div></div>
+      <div style="margin:26px 0 8px;height:1px;background:linear-gradient(90deg,var(--border),transparent)"></div>
+      ${feat('shield', 'feat1')}${feat('grid', 'feat2')}${feat('chat', 'feat3')}${feat('download', 'feat4')}
+      <div style="margin-top:auto" class="muted">✦ ${esc(brandTag())}</div>
     </div>
-    <div class="login-form">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><span class="tag">${esc(t('signIn'))}</span>
-        <div style="display:flex;gap:6px"><button type="button" class="btn icon ghost" data-act="theme">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button><button type="button" class="btn icon ghost" data-act="lang">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button></div></div>
-      <h2 style="margin:0 0 4px;font-size:23px;font-weight:800">${esc(t('signIn'))}</h2>
-      <p class="muted" style="margin:0 0 22px;font-size:14px">${esc(sysName())} — ${esc(t('tagline'))}</p>
-      <form id="loginForm" autocomplete="on">
-        <div class="fld"><label class="lab" for="lu">${esc(t('username'))}</label>
-          <div style="position:relative"><span style="position:absolute;top:12px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('edit')}</span>
-            <input class="inp" id="lu" name="username" autocomplete="username" autocapitalize="none" required style="padding-inline-start:42px"></div></div>
-        <div class="fld"><label class="lab" for="lp">${esc(t('password'))}</label>
-          <div style="position:relative"><span style="position:absolute;top:12px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('lock')}</span>
-            <input class="inp" id="lp" name="password" type="password" autocomplete="current-password" required style="padding-inline-start:42px;padding-inline-end:44px">
-            <button type="button" class="btn icon ghost" id="pwEye" style="position:absolute;top:4px;inset-inline-end:4px;padding:6px" title="show / hide">${ic('eye')}</button></div></div>
-        <div id="lmsg" style="min-height:22px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--err)">${esc(msg || '')}</div>
-        <button class="btn primary" id="lbtn" style="width:100%;padding:13px">${esc(t('login'))}</button>
-      </form>
-    </div></div></div>`;
+    <form class="login-form" id="loginForm" autocomplete="on">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:10px">${logoHtml('sm')}<b style="font-size:16px">${esc(brandName())}</b></div>
+        <div style="display:flex;gap:6px"><button type="button" class="btn icon ghost" data-act="theme">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button><button type="button" class="btn icon ghost" data-act="lang">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button></div>
+      </div>
+      <h2 style="margin:0 0 4px;font-size:24px;font-weight:800">${esc(t('signIn'))}</h2>
+      <p class="muted" style="margin:0 0 22px;font-size:13.5px">${esc(t('loginHint'))}</p>
+      <div class="fld"><label class="lab">${esc(t('username'))}</label><div style="position:relative"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('user')}</span><input class="inp" id="lu" name="username" style="padding-inline-start:40px" autocomplete="username" autocapitalize="none" required></div></div>
+      <div class="fld"><label class="lab">${esc(t('password'))}</label><div style="position:relative"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('lock')}</span><input class="inp" id="lp" name="password" type="password" style="padding-inline-start:40px" autocomplete="current-password" required></div></div>
+      <div id="lmsg" style="min-height:22px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--err)">${esc(msg || '')}</div>
+      <button class="btn primary" id="lbtn" style="width:100%;padding:13px">${ic('check')} ${esc(t('login'))}</button>
+      <div class="muted" style="text-align:center;margin-top:18px;font-size:12px">🔒 ${esc(t('secureLogin'))}</div>
+    </form></div></div>`;
   const last = localStorage.getItem('hr_lastuser'); if (last) $('#lu').value = last;
-  $('#pwEye').onclick = () => { const p = $('#lp'); p.type = p.type === 'password' ? 'text' : 'password'; };
   $('#loginForm').addEventListener('submit', onLogin);
 }
 let lockTimer;
@@ -498,10 +500,11 @@ function navItems() {
   return items;
 }
 function renderApp() {
+  hideSplash();
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
-    <aside class="side glass hidden lg:flex"><div style="display:flex;align-items:center;gap:10px;padding:6px 8px 16px">${logoHtml('sm')}<b style="font-size:17px">${esc(sysName())}</b></div>
+    <aside class="side glass hidden lg:flex"><div style="display:flex;align-items:center;gap:10px;padding:6px 8px 16px">${logoHtml('sm')}<b style="font-size:17px">${esc(brandName())}</b></div>
       ${items.map(i => `<button class="navi ${i.on ? 'on' : ''}" data-act="nav" data-id="${esc(i.id)}"><span class="em">${i.em}</span><span>${esc(i.label)}</span></button>`).join('')}</aside>
     <div class="main-col"><header class="topbar glass">
       <div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="hdTitle"></div><div class="muted" style="font-size:12px">${esc(S.user.name || S.user.username)}</div></div>
@@ -526,20 +529,56 @@ function renderMain() {
 /* ----------------------------- tab view ----------------------------- */
 function renderTabShell() {
   const main = $('#main'), fab = $('#fab'), sc = schemaOf(S.view.tab);
-  if (!sc) { $('#hdTitle').textContent = sysName(); fab.style.display = 'none'; main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
+  if (!sc) { $('#hdTitle').textContent = brandName(); fab.style.display = 'none'; main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
   $('#hdTitle').textContent = `${sc.icon || ''} ${tl(sc)}`; fab.style.display = canR(sc, 'w') ? 'flex' : 'none';
-  const sel = vf(sc).find(f => f.type === 'select' && f.options?.length); const lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards');
-  main.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px"><div style="position:relative;flex:1"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)">${ic('search')}</span>
+  const sel = vf(sc).find(f => f.type === 'select' && f.options?.length);
+  const mode = S.tabView[sc.name] || 'dash';
+  const lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards');
+  main.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+      <div class="seg"><button class="segbtn ${mode === 'dash' ? 'on' : ''}" data-act="tview" data-id="dash">${ic('dash')}<span class="hidden sm:inline">${esc(t('dashboard'))}</span></button><button class="segbtn ${mode === 'list' ? 'on' : ''}" data-act="tview" data-id="list">${ic('list')}<span class="hidden sm:inline">${esc(t('records'))}</span></button></div>
+      <div style="position:relative;flex:1;min-width:170px"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)">${ic('search')}</span>
       <input id="q" class="inp" style="padding-inline-start:42px" placeholder="${esc(t('search'))}" autocomplete="off" value="${esc(S.search)}"><div id="sugg" class="sugg glass" style="display:none"></div></div>
-      <button class="btn icon" data-act="export" title="Excel">⬇️</button>
-      <button class="btn icon" data-act="layout" title="layout">${ic(lay === 'table' ? 'grid' : 'list')}</button></div>
-    <div id="dash"></div>
-    ${sel ? `<div class="chips" id="fchips" style="margin-bottom:14px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px"><button class="chip ${!S.filter[sc.name] ? 'on' : ''}" data-f="">${esc(t('all'))}</button>${sel.options.map(o => `<button class="chip ${S.filter[sc.name] === o ? 'on' : ''}" data-f="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}
+      <button class="btn icon" data-act="export" title="${esc(t('exportExcel'))}">${ic('download')}</button>
+      ${mode === 'list' ? `<button class="btn icon" data-act="layout" title="layout">${ic(lay === 'table' ? 'grid' : 'list')}</button>` : ''}</div>
+    ${mode === 'list' && sel ? `<div class="chips" id="fchips" style="margin-bottom:14px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px"><button class="chip ${!S.filter[sc.name] ? 'on' : ''}" data-f="">${esc(t('all'))}</button>${sel.options.map(o => `<button class="chip ${S.filter[sc.name] === o ? 'on' : ''}" data-f="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}
     <div id="list"></div>`;
-  const q = $('#q'); q.addEventListener('input', debounce(() => { S.search = q.value; S.limit = CONFIG.PAGE; renderList(); renderSugg(); }, 80));
+  const q = $('#q'); q.addEventListener('input', debounce(() => { S.search = q.value; S.limit = CONFIG.PAGE; if ((S.tabView[sc.name] || 'dash') === 'list') renderList(); renderSugg(); }, 80));
   q.addEventListener('focus', renderSugg); q.addEventListener('blur', () => setTimeout(() => { const s = $('#sugg'); if (s) s.style.display = 'none'; }, 180));
-  renderList();
-  renderDash(sc);
+  if (mode === 'list') renderList(); else renderDash(sc);
+}
+function renderDash(sc) {
+  const box = $('#list'); if (!box) return;
+  const recs = [...dataOf(sc.name).values()].sort((a, b) => (b._updated || 0) - (a._updated || 0));
+  const sod = new Date(); sod.setHours(0, 0, 0, 0);
+  const today = recs.filter(r => (r._updated || 0) >= sod.getTime()).length;
+  const pending = recs.filter(r => r._pending).length;
+  const files = recs.reduce((n, r) => n + vf(sc).filter(f => f.type === 'file').reduce((m, f) => m + ((r[f.key] || []).length), 0), 0);
+  const nums = vf(sc).filter(f => ['number', 'calc'].includes(f.type)).slice(0, 4);
+  const sels = vf(sc).filter(f => f.type === 'select' && f.options && f.options.length).slice(0, 3);
+  const tf = vf(sc)[0];
+  const stat = (l, v, c) => `<div class="stat"><small>${esc(l)}</small><b style="color:${c || 'var(--text)'}">${v}</b></div>`;
+  box.innerHTML = `<div class="statgrid">${stat(t('total'), recs.length)}${stat(t('today'), today, 'var(--accent)')}${pending ? stat(t('pending'), pending, 'var(--warn)') : ''}${files ? stat('📎 ' + t('attachments'), files) : ''}${nums.map(f => { const s = recs.reduce((a, r) => a + (Number(r[f.key]) || 0), 0); return s ? stat(`${esc(fl(f))} · ${esc(t('sum'))}`, displayVal(f, s), 'var(--ok)') : ''; }).join('')}</div>
+  ${sels.map(f => { const c = {}; recs.forEach(r => { const v = r[f.key] || '—'; c[v] = (c[v] || 0) + 1; }); return `<div class="card glass" style="margin-top:12px"><b style="font-size:13px">${esc(fl(f))}</b><div class="statgrid" style="margin-top:10px">${Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="stat" data-act="dfilter" data-id="${esc(k === '—' ? '' : k)}" style="cursor:pointer" title="${esc(t('records'))}"><small>${esc(k)}</small><b>${v}</b></div>`).join('')}</div></div>`; }).join('')}
+  <div class="card glass" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><b style="font-size:13px">${esc(t('recentRecords'))}</b><button class="btn icon ghost" data-act="export">${ic('download')}</button></div>
+  ${recs.slice(0, 6).map(r => `<div class="urow" data-act="open" data-id="${esc(r._id)}" style="cursor:pointer"><div style="flex:1;min-width:0"><b style="font-size:14px">${esc(displayVal(tf, r[tf.key]) || '—')}</b>${r._pending ? ' <span class="dotp"></span>' : ''}<div class="muted" style="font-size:12px">${esc(fullTime(r._updated))}</div></div>${ic('edit')}</div>`).join('') || `<div class="muted" style="padding:8px 0">${esc(t('noData'))}</div>`}</div>`;
+}
+function exportXlsx() {
+  const sc = schemaOf(S.view.tab); if (!sc) return;
+  if (!window.XLSX) return toast(t('networkErr'), 'err');
+  const fields = vf(sc), rows = rowsFor(sc);
+  const aoa = [fields.map(f => fl(f))].concat(rows.map(r => fields.map(f => {
+    const v = r[f.key];
+    if (f.type === 'file') return (v || []).map(x => x.name).join(', ');
+    if (f.type === 'checkbox') return v ? t('yes') : t('no');
+    if (Array.isArray(v)) return v.join(', ');
+    if (f.type === 'number' || f.type === 'calc') return v === '' || v == null ? '' : Number(v);
+    return v == null ? '' : v;
+  })));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = fields.map(f => ({ wch: Math.max(14, String(fl(f)).length + 6) }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sc.name.slice(0, 28));
+  XLSX.writeFile(wb, `${sc.name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  toast(t('exportDone') + ` (${rows.length})`, 'ok');
 }
 function rowsFor(sc) {
   const q = S.search.trim().toLowerCase().split(/\s+/).filter(Boolean), flt = S.filter[sc.name], sel = vf(sc).find(f => f.type === 'select' && f.options?.length);
@@ -550,63 +589,6 @@ function hl(s, q) {
   s = esc(s); const tk = q.trim().split(/\s+/).filter(Boolean); if (!tk.length) return s;
   return s.replace(new RegExp('(' + tk.map(k => escRe(esc(k))).join('|') + ')', 'gi'), '<mark class="mk">$1</mark>');
 }
-/* ----------------------------- per-tab dashboard + Excel export ----------------------------- */
-function statCard(label, val, color) { return `<div class="stat"><small>${esc(label)}</small><b style="color:${color || 'var(--text)'}">${esc(val)}</b></div>`; }
-function renderDash(sc) {
-  const box = $('#dash'); if (!box) return;
-  if (!S.dashOpen) { box.innerHTML = `<button class="btn ghost" data-act="dash" style="width:100%;margin-bottom:12px;justify-content:flex-start">${ic('grid')} ${S.lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}</button>`; return; }
-  const rows = [...dataOf(sc.name).values()];
-  const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
-  const todayN = rows.filter(r => (r._updated || 0) >= startToday.getTime()).length;
-  const mine = rows.filter(r => r._by === S.user.username).length;
-  const pend = rows.filter(r => r._pending).length;
-  const selF = vf(sc).filter(f => f.type === 'select' && (f.options || []).length && !f.lookup);
-  const numF = vf(sc).filter(f => f.type === 'number' || f.type === 'calc');
-  const tf = vf(sc)[0];
-  const latest = rows.slice().sort((a, b) => (b._updated || 0) - (a._updated || 0)).slice(0, 5);
-  let h = `<div class="card glass" style="margin-bottom:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><b>📊 ${S.lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'} · ${esc(tl(sc))}</b><button class="btn icon ghost" data-act="dash" title="collapse">${ic('x')}</button></div>
-    <div class="statgrid">${statCard(S.lang === 'ar' ? 'إجمالي السجلات' : 'Total records', rows.length)}
-      ${statCard(S.lang === 'ar' ? 'تعديلات اليوم' : 'Updated today', todayN, 'var(--accent)')}
-      ${statCard(S.lang === 'ar' ? 'أضفتها أنا' : 'Added by me', mine, 'var(--accent2)')}
-      ${pend ? statCard(S.lang === 'ar' ? 'بانتظار المزامنة' : 'Pending sync', pend, 'var(--warn)') : ''}</div>`;
-  selF.slice(0, 3).forEach(f => {
-    const cnt = {}; rows.forEach(r => { const v = r[f.key]; if (v) cnt[v] = (cnt[v] || 0) + 1; });
-    const entries = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 8);
-    if (entries.length) h += `<div style="margin-top:12px"><small class="muted" style="font-weight:700">${esc(fl(f))}</small><div class="statgrid" style="margin-top:6px">${entries.map(([k, v]) => statCard(k, v, 'var(--accent)')).join('')}</div></div>`;
-  });
-  if (numF.length) h += `<div class="statgrid" style="margin-top:12px">${numF.map(f => statCard((S.lang === 'ar' ? 'مجموع ' : 'Total ') + fl(f), rows.reduce((a, r) => a + (Number(r[f.key]) || 0), 0).toLocaleString())).join('')}</div>`;
-  if (latest.length && tf) h += `<div style="margin-top:12px"><small class="muted" style="font-weight:700">${S.lang === 'ar' ? 'آخر السجلات' : 'Latest records'}</small>${latest.map(r => `<div class="urow" style="padding:7px 0;cursor:pointer" data-act="open" data-id="${esc(r._id)}"><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(displayVal(tf, r[tf.key]) || '—')}</b>${r._pending ? '<span class="dotp"></span>' : ''}<span class="muted" style="font-size:12px;flex:none">${esc(relTime(r._updated || 0))}</span></div>`).join('')}</div>`;
-  box.innerHTML = h + '</div>';
-}
-function exportExcel() {
-  const sc = schemaOf(S.view.tab); if (!sc) return;
-  if (typeof XLSX === 'undefined') { toast(S.lang === 'ar' ? 'مكتبة Excel لم تُحمّل بعد — افتح التطبيق وأنت متصل مرة واحدة' : 'Excel library not loaded yet', 'err'); return; }
-  const rows = rowsFor(sc), cols = vf(sc);
-  if (!rows.length) { toast(t('noData'), 'warn'); return; }
-  const head = cols.map(c => (S.lang === 'ar' && c.ar) ? c.ar : c.label);
-  const aoa = [head];
-  rows.forEach(r => aoa.push(cols.map(c => {
-    const v = r[c.key];
-    if (Array.isArray(v)) return v.map(x => (x && x.name) || x).filter(Boolean).join(', ');
-    if (typeof v === 'boolean') return v ? (S.lang === 'ar' ? 'نعم' : 'Yes') : (S.lang === 'ar' ? 'لا' : 'No');
-    return v === '' || v == null ? '' : v;
-  })));
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = cols.map((c, i) => ({ wch: Math.min(42, Math.max(14, head[i].length + 4, ...aoa.slice(1, 80).map(r => String(r[i] ?? '').length + 2))) }));
-  ws['!autofilter'] = { ref: ws['!ref'] };
-  const range = XLSX.utils.decode_range(ws['!ref']);
-  for (let C = range.s.c; C <= range.e.c; C++) {
-    const addr = XLSX.utils.encode_cell({ r: 0, c: C });
-    if (ws[addr]) ws[addr].s = { font: { bold: true, color: { rgb: 'FFFFFFFF' }, sz: 12 }, fill: { fgColor: { rgb: 'FF0F172A' } }, alignment: { horizontal: 'center', vertical: 'center' } };
-  }
-  const wb = XLSX.utils.book_new();
-  if (S.lang === 'ar') { try { wb.Workbook = { Views: [{ RTL: true }] }; } catch (e) {} }
-  XLSX.utils.book_append_sheet(wb, ws, sc.name.slice(0, 28));
-  XLSX.writeFile(wb, sc.name + '-' + new Date().toISOString().slice(0, 10) + '.xlsx');
-  toast(S.lang === 'ar' ? 'تم تصدير ' + rows.length + ' سجل إلى Excel' : 'Exported ' + rows.length + ' record(s) to Excel', 'ok');
-}
-
 function renderSugg() {
   const box = $('#sugg'); if (!box) return; const sc = schemaOf(S.view.tab); const q = S.search.trim();
   if (!q || !sc) { box.style.display = 'none'; return; }
@@ -882,6 +864,17 @@ async function admAudit() {
       <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted" style="align-self:center">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
   } catch (e) { adminErr(e); }
 }
+async function admSettings() {
+  const box = $('#adm');
+  box.innerHTML = `<div class="card glass" style="max-width:560px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">${logoHtml('sm')}<div><b>${esc(t('branding'))}</b><div class="muted" style="font-size:12px">${esc(t('brandingHint'))}</div></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="fld"><label class="lab">${esc(t('appName'))} (EN)</label><input class="inp" id="g_en" dir="ltr" value="${esc(BRAND.name.en)}"></div>
+    <div class="fld"><label class="lab">${esc(t('appName'))} (AR)</label><input class="inp" id="g_ar" value="${esc(BRAND.name.ar || '')}"></div></div>
+    <div class="fld"><label class="lab">${esc(t('tagline'))}</label><input class="inp" id="g_tag" value="${esc(S.lang === 'ar' ? (BRAND.tag.ar || '') : (BRAND.tag.en || ''))}"></div>
+    <div style="display:grid;grid-template-columns:110px 1fr;gap:10px"><div class="fld"><label class="lab">${esc(t('logoEmoji'))}</label><input class="inp" id="g_logo" style="text-align:center;font-size:24px;padding:6px" maxlength="4" value="${esc(BRAND.logo || '🧭')}"></div>
+    <div class="fld"><label class="lab">${esc(t('logoUrl'))}</label><input class="inp" id="g_img" dir="ltr" placeholder="https://…" value="${esc(BRAND.logoImg || '')}"></div></div>
+    <button class="btn primary" data-act="g_save" style="width:100%">${ic('check')} ${esc(t('save'))}</button></div>`;
+}
 const prettyJson = s => { try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; } };
 async function admUsers() {
   const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
@@ -899,6 +892,7 @@ function openUserForm(username) {
     <div class="fld"><label class="lab">${esc(t('password'))}</label><input class="inp" id="u_pw" type="password" autocomplete="new-password" placeholder="${esc(ex ? t('pwKeep') : t('pw'))}"></div>
     <div class="fld"><label class="lab">${esc(t('role'))}</label><div class="chips" id="u_role"><button type="button" class="chip ${ex?.role === 'admin' ? '' : 'on'}" data-v="user">user</button><button type="button" class="chip ${ex?.role === 'admin' ? 'on' : ''}" data-v="admin">admin</button></div></div>
     <div class="fld" id="u_perms"><label class="lab">${esc(t('permissions'))}</label><div class="pm muted" style="font-weight:700"><span></span><span style="text-align:center">R</span><span style="text-align:center">W</span><span style="text-align:center">D</span></div>
+      <div class="pm" style="padding:6px 0;font-weight:800;color:var(--accent)" data-tab="*"><span>✨ ${esc(t('allTabsRead'))}</span><label class="c"><input type="checkbox" data-r="r" ${(pm['*'] || '').includes('r') ? 'checked' : ''}></label><span></span><span></span></div>
       ${r.tabs.map(tb => `<div class="pm" style="padding:6px 0;border-top:1px solid var(--border)" data-tab="${esc(tb.name)}"><span>${esc(tb.label)}</span>${['r', 'w', 'd'].map(c => `<label class="c"><input type="checkbox" data-r="${c}" ${(pm[tb.name] || '').includes(c) ? 'checked' : ''}></label>`).join('')}</div>`).join('')}</div>
     <div class="fld" style="display:flex;align-items:center;justify-content:space-between"><span class="lab" style="margin:0">${esc(t('active'))}</span><div class="switch ${ex?.active === false ? '' : 'on'}" id="u_active"></div></div>
     <button class="btn primary" data-u="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`);
@@ -945,26 +939,6 @@ function openTabBuilder() {
   });
 }
 
-async function admSettings() {
-  const box = $('#adm'), s = S.settings;
-  box.innerHTML = `<div class="card glass" style="max-width:540px">
-    <b style="font-size:16px">⚙️ ${esc(t('settings'))}</b>
-    <p class="muted" style="font-size:13px;margin:8px 0 16px;line-height:1.8">${S.lang === 'ar' ? 'هذه الإعدادات محفوظة على هذا المتصفح. لو عايز تغيّرها لكل المستخدمين افتراضياً، عدّل القيم في أول ملف app.js (APP_NAME / APP_NAME_AR / LOGO).' : 'These settings are saved on this browser. To change the defaults for everyone, edit CONFIG at the top of app.js (APP_NAME / APP_NAME_AR / LOGO).'}</p>
-    <div class="fld"><label class="lab">${S.lang === 'ar' ? 'اسم النظام (إنجليزي)' : 'System name (English)'}</label><input class="inp" id="st_name" value="${esc(s.name || CONFIG.APP_NAME)}"></div>
-    <div class="fld"><label class="lab">${S.lang === 'ar' ? 'اسم النظام (عربي)' : 'System name (Arabic)'}</label><input class="inp" id="st_nameAr" value="${esc(s.nameAr || CONFIG.APP_NAME_AR)}"></div>
-    <div class="fld"><label class="lab">${S.lang === 'ar' ? 'اللوجو — إيموجي أو رابط صورة (https://…)' : 'Logo — emoji or image URL (https://…)'}</label><input class="inp" id="st_logo" dir="ltr" value="${esc(s.logo || CONFIG.LOGO)}"></div>
-    <div style="display:flex;gap:12px;align-items:center;margin:4px 0 18px">${logoHtml('sm')}<b id="st_prev">${esc(sysName())}</b></div>
-    <div style="display:flex;gap:10px"><button class="btn" data-st="reset">${S.lang === 'ar' ? 'إعادة الضبط' : 'Reset'}</button><button class="btn primary" data-st="save" style="flex:1">${ic('check')} ${esc(t('save'))}</button></div>
-  </div>`;
-  box.onclick = async e => {
-    const b = e.target.closest('[data-st]'); if (!b) return;
-    if (b.dataset.st === 'reset') { localStorage.removeItem('hr_settings'); S.settings = {}; toast(t('saved')); renderApp(); return; }
-    S.settings = { name: $('#st_name').value.trim(), nameAr: $('#st_nameAr').value.trim(), logo: $('#st_logo').value.trim() };
-    localStorage.setItem('hr_settings', JSON.stringify(S.settings));
-    document.title = sysName() + ' ERP'; toast(t('saved')); renderApp();
-  };
-}
-
 /* ----------------------------- global actions ----------------------------- */
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]'); if (!el) {
@@ -980,8 +954,18 @@ document.addEventListener('click', async e => {
     case 'open': { const sg = $('#sugg'); if (sg) sg.style.display = 'none'; openRecord(id); break; }
     case 'more': S.limit += CONFIG.PAGE; renderList(); break;
     case 'layout': S.layout = (S.layout || (innerWidth >= 1024 ? 'table' : 'cards')) === 'table' ? 'cards' : 'table'; renderTabShell(); break;
-    case 'dash': S.dashOpen = !S.dashOpen; renderDash(schemaOf(S.view.tab)); break;
-    case 'export': exportExcel(); break;
+    case 'tview': S.tabView[S.view.tab] = id; renderTabShell(); break;
+    case 'dfilter': S.filter[S.view.tab] = id || null; S.tabView[S.view.tab] = 'list'; renderTabShell(); break;
+    case 'export': exportXlsx(); break;
+    case 'g_save': {
+      const brand = clone(BRAND);
+      brand.name.en = $('#g_en').value.trim() || 'HR Ops'; brand.name.ar = $('#g_ar').value.trim();
+      brand.logo = $('#g_logo').value.trim() || '🧭'; brand.logoImg = $('#g_img').value.trim();
+      if (S.lang === 'ar') brand.tag.ar = $('#g_tag').value.trim(); else brand.tag.en = $('#g_tag').value.trim();
+      localStorage.setItem('hr_brand', JSON.stringify(brand)); Object.assign(BRAND, brand);
+      try { await api('admin_saveSettings', { settings: brand }); } catch (er) { adminErr(er); }
+      toast(t('userSaved')); renderApp(); break;
+    }
     case 'alerts': S.view = { ...S.view, kind: 'admin', admin: 'overview' }; renderApp(); break;
     case 'adm': S.view.admin = id; renderApp(); break;
     case 'ack': try { await api('admin_ackAlert', { id }); admOverview(); } catch (er) { adminErr(er); } break;
@@ -998,9 +982,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
+  try { const sb = JSON.parse(localStorage.getItem('hr_brand') || 'null'); if (sb) Object.assign(BRAND, sb); } catch (e) {}
   S.lang = localStorage.getItem('hr_lang') || (navigator.language || '').startsWith('ar') ? (localStorage.getItem('hr_lang') || 'ar') : 'en';
-  try { S.settings = JSON.parse(localStorage.getItem('hr_settings') || '{}'); } catch (e) { S.settings = {}; }
-  document.title = sysName() + ' ERP';
   S.theme = localStorage.getItem('hr_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); applyTheme(); applyLang();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   try { await DB.open(); } catch (e) { $('#app').innerHTML = '<p style="padding:30px">IndexedDB unavailable in this browser mode.</p>'; return; }
