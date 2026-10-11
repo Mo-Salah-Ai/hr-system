@@ -4,7 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbwCXgPmO1ggMLbRJIImlfCHVJ0Ngf3WshWVsen7LuuOBUALlPqrFbnqRvCEQzXnpLKyag/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbxwcwPeU0Yyov_7ijEEuzOwc3QpFf2R5vd4O7-bb51yheahTp3P88kihYhgjpBDOCK6bA/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -45,13 +45,6 @@ const I18N = {
     newRecord: 'New record', total: 'total', rows: 'rows', columns: 'Columns', icon: 'Icon', selectUser: 'Pick a user', allUsers: 'All', allTabs: 'All tabs', allActions: 'All actions',
     tabCreated: 'Tab created — it is live for everyone', userSaved: 'User saved', pw: 'Password (min 8 chars)', pwKeep: 'Leave empty to keep current', status: 'Status', switchedChat: 'Chat entry',
     permsChanged: 'Your permissions changed — reloading', saveFail: 'Could not save', confirmDel: 'Delete this record?', openFile: 'Open', fileOffline: 'File is stored on this device until you are online', mic: 'Voice input',
-    dashboard: 'Dashboard', records: 'Records', sum: 'Σ Total', today: 'Today', pending: 'Pending', attachments: 'Attachments', recentRecords: 'Recent records',
-    exportExcel: 'Export Excel', exportDone: 'Excel file downloaded', allTabsRead: 'Access to ALL tabs (read-only)', settings: 'Settings',
-    branding: 'Branding', brandingHint: 'Logo & name shown on the splash screen, login and sidebar', appName: 'App name', tagline: 'Tagline',
-    logoEmoji: 'Logo (emoji)', logoUrl: 'Logo image URL (optional)', loginHint: 'Sign in to continue to your workspace',
-    secureLogin: 'Protected login · repeated wrong passwords lock the account',
-    feat1: 'Offline-first: capture data anywhere, it syncs automatically', feat2: 'Tabs & dashboards shaped by your permissions',
-    feat3: 'Chat-style or form data entry, with file uploads', feat4: 'Full audit trail, security alerts & Excel export',
     syncNow: 'Sync now', syncStatus: 'Sync status', syncVerified: (n, k) => `Verified: ${n} record(s) in ${k} page(s) match the server`, lastSyncAt: x => `Last successful sync: ${x}`,
     nothingPending: 'Nothing is waiting to sync', discardConfirm: 'Discard this unsynced change?', syncFailed: 'Sync failed'
   },
@@ -74,30 +67,16 @@ const I18N = {
     newRecord: 'سجل جديد', total: 'إجمالي', rows: 'صف', columns: 'الأعمدة', icon: 'أيقونة', selectUser: 'اختر مستخدماً', allUsers: 'الكل', allTabs: 'كل الصفحات', allActions: 'كل الإجراءات',
     tabCreated: 'تم إنشاء الصفحة — أصبحت متاحة للجميع', userSaved: 'تم حفظ المستخدم', pw: 'كلمة المرور (٨ أحرف على الأقل)', pwKeep: 'اتركها فارغة للإبقاء على الحالية', status: 'الحالة', switchedChat: 'إدخال بالمحادثة',
     permsChanged: 'تغيّرت صلاحياتك — جارٍ التحديث', saveFail: 'تعذّر الحفظ', confirmDel: 'حذف هذا السجل؟', openFile: 'فتح', fileOffline: 'الملف محفوظ على جهازك حتى تتصل بالإنترنت', mic: 'إدخال صوتي',
-    dashboard: 'لوحة المعلومات', records: 'السجلات', sum: 'Σ المجموع', today: 'اليوم', pending: 'معلّق', attachments: 'المرفقات', recentRecords: 'أحدث السجلات',
-    exportExcel: 'تصدير Excel', exportDone: 'تم تنزيل ملف Excel', allTabsRead: 'الوصول لكل الصفحات (قراءة فقط)', settings: 'الإعدادات',
-    branding: 'هوية النظام', brandingHint: 'الشعار والاسم في شاشة البداية وشاشة الدخول والقائمة الجانبية', appName: 'اسم النظام', tagline: 'الوصف المختصر',
-    logoEmoji: 'الشعار (رمز)', logoUrl: 'رابط صورة الشعار (اختياري)', loginHint: 'سجّل الدخول للمتابعة إلى مساحة العمل',
-    secureLogin: 'دخول محمي · المحاولات الخاطئة المتكررة تقفل الحساب',
-    feat1: 'يعمل بدون إنترنت: سجّل البيانات في أي مكان وتتم المزامنة تلقائياً', feat2: 'صفحات ولوحات معلومات تُبنى حسب صلاحياتك',
-    feat3: 'إدخال بالمحادثة أو بالنموذج، مع رفع الملفات', feat4: 'سجل تدقيق كامل وتنبيهات أمان وتصدير Excel',
     syncNow: 'مزامنة الآن', syncStatus: 'حالة المزامنة', syncVerified: (n, k) => `تم التحقق: ${n} سجل في ${k} صفحة مطابق للسيرفر`, lastSyncAt: x => `آخر مزامنة ناجحة: ${x}`,
     nothingPending: 'لا يوجد شيء في انتظار المزامنة', discardConfirm: 'تجاهل هذا التعديل غير المتزامن؟', syncFailed: 'فشلت المزامنة'
   }
 };
 const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', date: 'Date', datetime: 'Date & time', select: 'Dropdown', multiselect: 'Multi-select', checkbox: 'Checkbox', phone: 'Phone', email: 'Email', file: 'File upload', calc: 'Calculated' },
   ar: { text: 'نص', longtext: 'نص طويل', number: 'رقم', date: 'تاريخ', datetime: 'تاريخ ووقت', select: 'قائمة', multiselect: 'اختيار متعدد', checkbox: 'مربع اختيار', phone: 'هاتف', email: 'بريد', file: 'رفع ملف', calc: 'محسوب' } };
-const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create'];
-
-const BRAND = { name: { en: 'HR Ops', ar: 'نظام العمليات' }, tag: { en: 'Recruitment & staffing platform', ar: 'منصة التوظيف والاستقدام' }, logo: '🧭', logoImg: '' };
-function brandName() { return (S.lang === 'ar' && BRAND.name.ar) ? BRAND.name.ar : BRAND.name.en; }
-function brandTag() { return (S.lang === 'ar' && BRAND.tag && BRAND.tag.ar) ? BRAND.tag.ar : (BRAND.tag && BRAND.tag.en || ''); }
-function logoHtml(sz = '') { return BRAND.logoImg ? `<img class="logoimg ${sz === 'sm' ? 'sm' : ''}" src="${esc(BRAND.logoImg)}" alt="logo">` : `<div class="logo ${sz === 'sm' ? 'sm' : (sz === 'lg' ? 'lg' : '')}">${esc(BRAND.logo || '🧭')}</div>`; }
-function applySettings(st) { if (!st) return; if (st.name) { if (st.name.en) BRAND.name.en = st.name.en; if (st.name.ar) BRAND.name.ar = st.name.ar; } if (st.tag) { if (st.tag.en) BRAND.tag.en = st.tag.en; if (st.tag.ar) BRAND.tag.ar = st.tag.ar; } if (st.logo) BRAND.logo = st.logo; if (st.logoImg) BRAND.logoImg = st.logoImg; }
-function hideSplash() { const sp = $('#splash'); if (!sp || sp.dataset.done) return; sp.dataset.done = '1'; const wait = Math.max(0, 1100 - (Date.now() - (window.__t0 || 0))); setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 700); }, wait); }
+const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create', 'tab_update'];
 
 const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
-  online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null, tabView: {} };
+  online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null };
 const t = (k, ...a) => { const v = (I18N[S.lang] || I18N.en)[k] ?? I18N.en[k] ?? k; return typeof v === 'function' ? v(...a) : v; };
 const fl = f => (S.lang === 'ar' && f.ar) ? f.ar : f.label;
 const tl = tb => (S.lang === 'ar' && tb.ar) ? tb.ar : tb.label;
@@ -114,10 +93,7 @@ const ICONS = {
   grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', check: '<path d="M20 6 9 17l-5-5"/>', upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
   spin: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
-  sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>',
-  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>',
-  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
-  dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'
+  sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>'
 };
 const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 
@@ -142,11 +118,98 @@ function cond(expr, data) {
   const hit = (Array.isArray(v) ? v.map(String) : [String(v ?? '')]).some(x => want.includes(x));
   return m[2] === '!=' ? !hit : hit;
 }
+/* Safe formula engine (same code in app.js and Code.gs). Supports + - * / % ( ), comparisons, dates and functions:
+   DAYS(end,start) MONTHS(end,start) YEARS(end,start) ADDDAYS(date,n) ADDMONTHS(date,n) TODAY()
+   ROUND(x,n) ABS MIN MAX SUM AVG IF(cond,a,b) AND OR NOT CONCAT */
 function calcVal(expr, data) {
+  const DAY = 86400000, DRE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
   try {
-    const s = String(expr).replace(/\{([^}]+)\}|[A-Za-z_]\w*/g, (m0, k) => String(Number(data[(k || m0).trim()]) || 0));
-    if (!/^[0-9+\-*/().\s%]*$/.test(s)) return '';
-    const r = Function('"use strict";return (' + s + ')')(); return isFinite(r) ? Math.round(r * 100) / 100 : '';
+    const s = String(expr == null ? '' : expr), T = []; let i = 0, m;
+    while (i < s.length) {
+      const c = s[i], rest = s.slice(i);
+      if (/\s/.test(c)) { i++; continue; }
+      if ((m = /^(\d+\.?\d*|\.\d+)/.exec(rest))) { T.push({ t: 'n', v: parseFloat(m[1]) }); i += m[1].length; }
+      else if (c === '{') { const j = s.indexOf('}', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
+      else if (c === '"' || c === "'") { const j = s.indexOf(c, i + 1); if (j < 0) return ''; T.push({ t: 's', v: s.slice(i + 1, j) }); i = j + 1; }
+      else if ((m = /^[A-Za-z_]\w*/.exec(rest))) { T.push({ t: 'i', v: m[0] }); i += m[0].length; }
+      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
+      else return '';
+    }
+    let p = 0;
+    const isD = v => v !== null && typeof v === 'object';
+    const num = v => v == null ? 0 : isD(v) ? v.d : typeof v === 'number' ? v : (v === '' || isNaN(Number(v)) ? NaN : Number(v));
+    const ref = k => {
+      const v = data[k]; if (v === undefined || v === null || v === '') return null;
+      if (typeof v === 'number') return v; if (typeof v === 'boolean') return v ? 1 : 0; if (Array.isArray(v)) return v.join(', ');
+      const str = String(v), d = DRE.exec(str);
+      if (d) return { d: Date.UTC(+d[1], +d[2] - 1, +d[3], +(d[4] || 0), +(d[5] || 0)) / DAY };
+      return str.trim() !== '' && !isNaN(Number(str)) ? Number(str) : str;
+    };
+    const ymd = v => new Date(Math.round(v.d * DAY));
+    const addM = (v, n) => { const dt = ymd(v), y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + Math.trunc(n), last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate(); return { d: Date.UTC(y, mo, Math.min(dt.getUTCDate(), last), dt.getUTCHours(), dt.getUTCMinutes()) / DAY }; };
+    const months = (a, b) => { const x = ymd(a), y = ymd(b); let n = (x.getUTCFullYear() - y.getUTCFullYear()) * 12 + x.getUTCMonth() - y.getUTCMonth(); if (n > 0 && x.getUTCDate() < y.getUTCDate()) n--; if (n < 0 && x.getUTCDate() > y.getUTCDate()) n++; return n; };
+    const must = v => { if (!isD(v)) throw 0; return v; };
+    const nn = v => { const x = num(v); if (isNaN(x)) throw 0; return x; };
+    const arith = (op, a, b) => {
+      const ad = isD(a), bd = isD(b);
+      if ((ad || bd) && (a == null || b == null)) return null;
+      if (op === '+') { if (ad && bd) throw 0; if (ad) return { d: a.d + nn(b) }; if (bd) return { d: b.d + nn(a) }; return nn(a) + nn(b); }
+      if (op === '-') { if (ad && bd) return a.d - b.d; if (ad) return { d: a.d - nn(b) }; if (bd) throw 0; return nn(a) - nn(b); }
+      if (ad || bd) throw 0;
+      const x = nn(a), y = nn(b); return op === '*' ? x * y : op === '/' ? x / y : x % y;
+    };
+    const cmp = (op, a, b) => {
+      let x = isD(a) ? a.d : a, y = isD(b) ? b.d : b;
+      if (typeof x === 'string' || typeof y === 'string') { x = String(x == null ? '' : x).toLowerCase(); y = String(y == null ? '' : y).toLowerCase(); } else { x = x == null ? 0 : x; y = y == null ? 0 : y; }
+      return (op === '<' ? x < y : op === '>' ? x > y : op === '<=' ? x <= y : op === '>=' ? x >= y : (op === '=' || op === '==') ? x === y : x !== y) ? 1 : 0;
+    };
+    const truthy = v => v != null && v !== 0 && v !== '' && v !== false;
+    const nums = a => a.filter(v => v != null).map(nn);
+    const FN = {
+      TODAY: () => ({ d: Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / DAY) }),
+      DAYS: a => a[0] == null || a[1] == null ? null : must(a[0]).d - must(a[1]).d,
+      MONTHS: a => a[0] == null || a[1] == null ? null : months(must(a[0]), must(a[1])),
+      YEARS: a => { if (a[0] == null || a[1] == null) return null; const n = months(must(a[0]), must(a[1])); return Math.trunc(n / 12); },
+      ADDDAYS: a => a[0] == null ? null : { d: must(a[0]).d + nn(a[1]) },
+      ADDMONTHS: a => a[0] == null ? null : addM(must(a[0]), nn(a[1])),
+      ROUND: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.round(nn(a[0]) * k) / k; },
+      ABS: a => Math.abs(nn(a[0])),
+      MIN: a => { const x = nums(a); return x.length ? Math.min.apply(null, x) : null; },
+      MAX: a => { const x = nums(a); return x.length ? Math.max.apply(null, x) : null; },
+      SUM: a => nums(a).reduce((s, v) => s + v, 0),
+      AVG: a => { const x = nums(a); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; },
+      IF: a => truthy(a[0]) ? (a[1] === undefined ? null : a[1]) : (a[2] === undefined ? null : a[2]),
+      AND: a => a.every(truthy) ? 1 : 0, OR: a => a.some(truthy) ? 1 : 0, NOT: a => truthy(a[0]) ? 0 : 1,
+      CONCAT: a => a.map(v => isD(v) ? toStr(v) : v == null ? '' : String(v)).join('')
+    };
+    const toStr = v => { const dt = ymd(v), z = n => (n < 10 ? '0' : '') + n, base = dt.getUTCFullYear() + '-' + z(dt.getUTCMonth() + 1) + '-' + z(dt.getUTCDate()); return Number.isInteger(v.d) ? base : base + 'T' + z(dt.getUTCHours()) + ':' + z(dt.getUTCMinutes()); };
+    const peek = v => T[p] && T[p].t === 'o' && T[p].v === v;
+    const expr0 = () => {
+      let a = add();
+      while (T[p] && T[p].t === 'o' && ['<', '>', '<=', '>=', '=', '==', '!=', '<>'].indexOf(T[p].v) >= 0) { const op = T[p++].v; a = cmp(op, a, add()); }
+      return a;
+    };
+    const add = () => { let a = mul(); while (peek('+') || peek('-')) { const op = T[p++].v; a = arith(op, a, mul()); } return a; };
+    const mul = () => { let a = un(); while (peek('*') || peek('/') || peek('%')) { const op = T[p++].v; a = arith(op, a, un()); } return a; };
+    const un = () => { if (peek('-')) { p++; const v = un(); return v == null ? null : -nn(v); } if (peek('+')) { p++; return un(); } return prim(); };
+    const prim = () => {
+      const k = T[p++]; if (!k) throw 0;
+      if (k.t === 'n' || k.t === 's') return k.v;
+      if (k.t === 'r') return ref(k.v);
+      if (k.t === 'o' && k.v === '(') { const v = expr0(); if (!peek(')')) throw 0; p++; return v; }
+      if (k.t === 'i') {
+        if (peek('(')) {
+          p++; const args = [];
+          if (peek(')')) p++; else { for (;;) { args.push(expr0()); if (peek(',')) { p++; continue; } if (peek(')')) { p++; break; } throw 0; } }
+          const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args);
+        }
+        return ref(k.v);
+      }
+      throw 0;
+    };
+    let r = expr0(); if (p < T.length) return '';
+    if (r == null) return ''; if (isD(r)) return toStr(r); if (typeof r === 'string') return r;
+    return isFinite(r) ? Math.round(r * 100) / 100 : '';
   } catch (e) { return ''; }
 }
 const schemaOf = tab => S.tabs.find(x => x.name === tab);
@@ -172,7 +235,8 @@ function displayVal(f, v) {
     case 'file': return '📎 ' + v.length;
     case 'checkbox': return v ? '✓' : '—';
     case 'multiselect': return v.join(', ');
-    case 'number': case 'calc': return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
+    case 'number': return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
+    case 'calc': if (typeof v === 'string' && isNaN(Number(v))) return /^\d{4}-\d{2}-\d{2}$/.test(v) ? displayVal({ type: 'date' }, v) : v; return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
     case 'date': try { return new Date(v + 'T00:00').toLocaleDateString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium' }); } catch (e) { return v; }
     case 'datetime': try { return new Date(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return v; }
     default: return String(v);
@@ -440,35 +504,22 @@ function stopTimers() { clearInterval(hbTimer); clearInterval(syncTimer); clearI
 
 async function refresh() {
   const b = await api('bootstrap');
-  S.user = b.user; S.tabs = b.tabs; if (b.settings) applySettings(b.settings); await meta.set('user', S.user); await meta.set('schema', S.tabs);
+  S.user = b.user; S.tabs = b.tabs; await meta.set('user', S.user); await meta.set('schema', S.tabs);
   if (!S.tabs.find(x => x.name === S.view.tab)) S.view.tab = S.tabs[0]?.name || null;
   await pullAll();
 }
 
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
-  closeSheet(true); hideSplash();
-  const feat = (icn, k) => `<div class="feat"><span class="fi-ic">${ic(icn)}</span><span>${esc(t(k))}</span></div>`;
-  $('#app').innerHTML = `<div class="login"><div class="login-card glass">
-    <div class="login-side">
-      <div style="display:flex;align-items:center;gap:14px">${logoHtml('lg')}<div><h1>${esc(brandName())}</h1><div class="muted" style="font-size:13.5px">${esc(brandTag())}</div></div></div>
-      <div style="margin:26px 0 8px;height:1px;background:linear-gradient(90deg,var(--border),transparent)"></div>
-      ${feat('shield', 'feat1')}${feat('grid', 'feat2')}${feat('chat', 'feat3')}${feat('download', 'feat4')}
-      <div style="margin-top:auto" class="muted">✦ ${esc(brandTag())}</div>
-    </div>
-    <form class="login-form" id="loginForm" autocomplete="on">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
-        <div style="display:flex;align-items:center;gap:10px">${logoHtml('sm')}<b style="font-size:16px">${esc(brandName())}</b></div>
-        <div style="display:flex;gap:6px"><button type="button" class="btn icon ghost" data-act="theme">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button><button type="button" class="btn icon ghost" data-act="lang">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button></div>
-      </div>
-      <h2 style="margin:0 0 4px;font-size:24px;font-weight:800">${esc(t('signIn'))}</h2>
-      <p class="muted" style="margin:0 0 22px;font-size:13.5px">${esc(t('loginHint'))}</p>
-      <div class="fld"><label class="lab">${esc(t('username'))}</label><div style="position:relative"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('user')}</span><input class="inp" id="lu" name="username" style="padding-inline-start:40px" autocomplete="username" autocapitalize="none" required></div></div>
-      <div class="fld"><label class="lab">${esc(t('password'))}</label><div style="position:relative"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted);display:flex">${ic('lock')}</span><input class="inp" id="lp" name="password" type="password" style="padding-inline-start:40px" autocomplete="current-password" required></div></div>
-      <div id="lmsg" style="min-height:22px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--err)">${esc(msg || '')}</div>
-      <button class="btn primary" id="lbtn" style="width:100%;padding:13px">${ic('check')} ${esc(t('login'))}</button>
-      <div class="muted" style="text-align:center;margin-top:18px;font-size:12px">🔒 ${esc(t('secureLogin'))}</div>
-    </form></div></div>`;
+  closeSheet(true);
+  $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
+      <div style="display:flex;gap:6px"><button type="button" class="btn icon ghost" data-act="theme">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button><button type="button" class="btn icon ghost" data-act="lang">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button></div></div>
+    <h1 style="margin:0 0 4px;font-size:26px;font-weight:700">${esc(t('appName'))}</h1><p class="muted" style="margin:0 0 22px">${esc(t('tagline'))}</p>
+    <div class="fld"><label class="lab">${esc(t('username'))}</label><input class="inp" id="lu" name="username" autocomplete="username" autocapitalize="none" required></div>
+    <div class="fld"><label class="lab">${esc(t('password'))}</label><input class="inp" id="lp" name="password" type="password" autocomplete="current-password" required></div>
+    <div id="lmsg" style="min-height:22px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--err)">${esc(msg || '')}</div>
+    <button class="btn primary" id="lbtn" style="width:100%;padding:13px">${esc(t('login'))}</button></form></div>`;
   const last = localStorage.getItem('hr_lastuser'); if (last) $('#lu').value = last;
   $('#loginForm').addEventListener('submit', onLogin);
 }
@@ -487,7 +538,7 @@ async function onLogin(e) {
       let s = err.data.retryAfter || 300; clearInterval(lockTimer); btn.disabled = true;
       const tick = () => { if (s <= 0) { clearInterval(lockTimer); msg.textContent = ''; btn.disabled = false; return; } msg.textContent = '🔒 ' + t('lockedFor', `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`); s--; };
       tick(); lockTimer = setInterval(tick, 1000);
-    } else if (err.code === 'invalid') { msg.textContent = t('invalid') + (err.data.attemptsLeft != null ? ' — ' + t('attemptsLeft', err.data.attemptsLeft) : ''); $('.login-card').animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 200); }
+    } else if (err.code === 'invalid') { msg.textContent = t('invalid') + (err.data.attemptsLeft != null ? ' — ' + t('attemptsLeft', err.data.attemptsLeft) : ''); $('#loginForm .box, .box').animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 200); }
     else if (err.code === 'disabled') msg.textContent = t('disabled');
     else msg.textContent = err.code === 'network' ? t('networkErr') : err.message;
   }
@@ -500,11 +551,10 @@ function navItems() {
   return items;
 }
 function renderApp() {
-  hideSplash();
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
-    <aside class="side glass hidden lg:flex"><div style="display:flex;align-items:center;gap:10px;padding:6px 8px 16px">${logoHtml('sm')}<b style="font-size:17px">${esc(brandName())}</b></div>
+    <aside class="side glass hidden lg:flex"><div style="display:flex;align-items:center;gap:10px;padding:6px 8px 16px"><div class="logo" style="width:40px;height:40px;font-size:20px;border-radius:14px">🧭</div><b style="font-size:17px">${esc(t('appName'))}</b></div>
       ${items.map(i => `<button class="navi ${i.on ? 'on' : ''}" data-act="nav" data-id="${esc(i.id)}"><span class="em">${i.em}</span><span>${esc(i.label)}</span></button>`).join('')}</aside>
     <div class="main-col"><header class="topbar glass">
       <div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="hdTitle"></div><div class="muted" style="font-size:12px">${esc(S.user.name || S.user.username)}</div></div>
@@ -529,56 +579,17 @@ function renderMain() {
 /* ----------------------------- tab view ----------------------------- */
 function renderTabShell() {
   const main = $('#main'), fab = $('#fab'), sc = schemaOf(S.view.tab);
-  if (!sc) { $('#hdTitle').textContent = brandName(); fab.style.display = 'none'; main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
+  if (!sc) { $('#hdTitle').textContent = t('appName'); fab.style.display = 'none'; main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
   $('#hdTitle').textContent = `${sc.icon || ''} ${tl(sc)}`; fab.style.display = canR(sc, 'w') ? 'flex' : 'none';
-  const sel = vf(sc).find(f => f.type === 'select' && f.options?.length);
-  const mode = S.tabView[sc.name] || 'dash';
-  const lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards');
-  main.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
-      <div class="seg"><button class="segbtn ${mode === 'dash' ? 'on' : ''}" data-act="tview" data-id="dash">${ic('dash')}<span class="hidden sm:inline">${esc(t('dashboard'))}</span></button><button class="segbtn ${mode === 'list' ? 'on' : ''}" data-act="tview" data-id="list">${ic('list')}<span class="hidden sm:inline">${esc(t('records'))}</span></button></div>
-      <div style="position:relative;flex:1;min-width:170px"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)">${ic('search')}</span>
+  const sel = vf(sc).find(f => f.type === 'select' && f.options?.length); const lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards');
+  main.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px"><div style="position:relative;flex:1"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)">${ic('search')}</span>
       <input id="q" class="inp" style="padding-inline-start:42px" placeholder="${esc(t('search'))}" autocomplete="off" value="${esc(S.search)}"><div id="sugg" class="sugg glass" style="display:none"></div></div>
-      <button class="btn icon" data-act="export" title="${esc(t('exportExcel'))}">${ic('download')}</button>
-      ${mode === 'list' ? `<button class="btn icon" data-act="layout" title="layout">${ic(lay === 'table' ? 'grid' : 'list')}</button>` : ''}</div>
-    ${mode === 'list' && sel ? `<div class="chips" id="fchips" style="margin-bottom:14px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px"><button class="chip ${!S.filter[sc.name] ? 'on' : ''}" data-f="">${esc(t('all'))}</button>${sel.options.map(o => `<button class="chip ${S.filter[sc.name] === o ? 'on' : ''}" data-f="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}
+      <button class="btn icon" data-act="layout" title="layout">${ic(lay === 'table' ? 'grid' : 'list')}</button></div>
+    ${sel ? `<div class="chips" id="fchips" style="margin-bottom:14px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px"><button class="chip ${!S.filter[sc.name] ? 'on' : ''}" data-f="">${esc(t('all'))}</button>${sel.options.map(o => `<button class="chip ${S.filter[sc.name] === o ? 'on' : ''}" data-f="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}
     <div id="list"></div>`;
-  const q = $('#q'); q.addEventListener('input', debounce(() => { S.search = q.value; S.limit = CONFIG.PAGE; if ((S.tabView[sc.name] || 'dash') === 'list') renderList(); renderSugg(); }, 80));
+  const q = $('#q'); q.addEventListener('input', debounce(() => { S.search = q.value; S.limit = CONFIG.PAGE; renderList(); renderSugg(); }, 80));
   q.addEventListener('focus', renderSugg); q.addEventListener('blur', () => setTimeout(() => { const s = $('#sugg'); if (s) s.style.display = 'none'; }, 180));
-  if (mode === 'list') renderList(); else renderDash(sc);
-}
-function renderDash(sc) {
-  const box = $('#list'); if (!box) return;
-  const recs = [...dataOf(sc.name).values()].sort((a, b) => (b._updated || 0) - (a._updated || 0));
-  const sod = new Date(); sod.setHours(0, 0, 0, 0);
-  const today = recs.filter(r => (r._updated || 0) >= sod.getTime()).length;
-  const pending = recs.filter(r => r._pending).length;
-  const files = recs.reduce((n, r) => n + vf(sc).filter(f => f.type === 'file').reduce((m, f) => m + ((r[f.key] || []).length), 0), 0);
-  const nums = vf(sc).filter(f => ['number', 'calc'].includes(f.type)).slice(0, 4);
-  const sels = vf(sc).filter(f => f.type === 'select' && f.options && f.options.length).slice(0, 3);
-  const tf = vf(sc)[0];
-  const stat = (l, v, c) => `<div class="stat"><small>${esc(l)}</small><b style="color:${c || 'var(--text)'}">${v}</b></div>`;
-  box.innerHTML = `<div class="statgrid">${stat(t('total'), recs.length)}${stat(t('today'), today, 'var(--accent)')}${pending ? stat(t('pending'), pending, 'var(--warn)') : ''}${files ? stat('📎 ' + t('attachments'), files) : ''}${nums.map(f => { const s = recs.reduce((a, r) => a + (Number(r[f.key]) || 0), 0); return s ? stat(`${esc(fl(f))} · ${esc(t('sum'))}`, displayVal(f, s), 'var(--ok)') : ''; }).join('')}</div>
-  ${sels.map(f => { const c = {}; recs.forEach(r => { const v = r[f.key] || '—'; c[v] = (c[v] || 0) + 1; }); return `<div class="card glass" style="margin-top:12px"><b style="font-size:13px">${esc(fl(f))}</b><div class="statgrid" style="margin-top:10px">${Object.entries(c).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="stat" data-act="dfilter" data-id="${esc(k === '—' ? '' : k)}" style="cursor:pointer" title="${esc(t('records'))}"><small>${esc(k)}</small><b>${v}</b></div>`).join('')}</div></div>`; }).join('')}
-  <div class="card glass" style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><b style="font-size:13px">${esc(t('recentRecords'))}</b><button class="btn icon ghost" data-act="export">${ic('download')}</button></div>
-  ${recs.slice(0, 6).map(r => `<div class="urow" data-act="open" data-id="${esc(r._id)}" style="cursor:pointer"><div style="flex:1;min-width:0"><b style="font-size:14px">${esc(displayVal(tf, r[tf.key]) || '—')}</b>${r._pending ? ' <span class="dotp"></span>' : ''}<div class="muted" style="font-size:12px">${esc(fullTime(r._updated))}</div></div>${ic('edit')}</div>`).join('') || `<div class="muted" style="padding:8px 0">${esc(t('noData'))}</div>`}</div>`;
-}
-function exportXlsx() {
-  const sc = schemaOf(S.view.tab); if (!sc) return;
-  if (!window.XLSX) return toast(t('networkErr'), 'err');
-  const fields = vf(sc), rows = rowsFor(sc);
-  const aoa = [fields.map(f => fl(f))].concat(rows.map(r => fields.map(f => {
-    const v = r[f.key];
-    if (f.type === 'file') return (v || []).map(x => x.name).join(', ');
-    if (f.type === 'checkbox') return v ? t('yes') : t('no');
-    if (Array.isArray(v)) return v.join(', ');
-    if (f.type === 'number' || f.type === 'calc') return v === '' || v == null ? '' : Number(v);
-    return v == null ? '' : v;
-  })));
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = fields.map(f => ({ wch: Math.max(14, String(fl(f)).length + 6) }));
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sc.name.slice(0, 28));
-  XLSX.writeFile(wb, `${sc.name}-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  toast(t('exportDone') + ` (${rows.length})`, 'ok');
+  renderList();
 }
 function rowsFor(sc) {
   const q = S.search.trim().toLowerCase().split(/\s+/).filter(Boolean), flt = S.filter[sc.name], sel = vf(sc).find(f => f.type === 'select' && f.options?.length);
@@ -827,9 +838,9 @@ function openNewFormWith(tab, draft, rid) {
 
 /* ----------------------------- admin dashboard ----------------------------- */
 function renderAdmin() {
-  const sec = S.view.admin, names = { overview: 'overview', users: 'users', audit: 'audit', tabs: 'tabs', settings: 'settings' };
+  const sec = S.view.admin, names = { overview: 'overview', users: 'users', audit: 'audit', tabs: 'tabs' };
   $('#main').innerHTML = `<div class="sub">${Object.keys(names).map(k => `<button class="btn ${sec === k ? 'primary' : ''}" data-act="adm" data-id="${k}">${esc(t(k === 'audit' ? 'audit' : k))}</button>`).join('')}</div><div id="adm"></div>`;
-  ({ overview: admOverview, users: admUsers, audit: admAudit, tabs: admTabs, settings: admSettings }[sec] || admOverview)();
+  ({ overview: admOverview, users: admUsers, audit: admAudit, tabs: admTabs }[sec] || admOverview)();
 }
 const adminErr = e => { if (e.code !== 'auth') toast(e.code === 'network' ? t('networkErr') : e.message, 'err'); };
 function presenceText(u) { return u.online ? t('onlineSince', hhmm(u.since)) : t('lastSeen', relTime(u.lastSeen)); }
@@ -864,17 +875,6 @@ async function admAudit() {
       <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted" style="align-self:center">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
   } catch (e) { adminErr(e); }
 }
-async function admSettings() {
-  const box = $('#adm');
-  box.innerHTML = `<div class="card glass" style="max-width:560px;margin:0 auto">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">${logoHtml('sm')}<div><b>${esc(t('branding'))}</b><div class="muted" style="font-size:12px">${esc(t('brandingHint'))}</div></div></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="fld"><label class="lab">${esc(t('appName'))} (EN)</label><input class="inp" id="g_en" dir="ltr" value="${esc(BRAND.name.en)}"></div>
-    <div class="fld"><label class="lab">${esc(t('appName'))} (AR)</label><input class="inp" id="g_ar" value="${esc(BRAND.name.ar || '')}"></div></div>
-    <div class="fld"><label class="lab">${esc(t('tagline'))}</label><input class="inp" id="g_tag" value="${esc(S.lang === 'ar' ? (BRAND.tag.ar || '') : (BRAND.tag.en || ''))}"></div>
-    <div style="display:grid;grid-template-columns:110px 1fr;gap:10px"><div class="fld"><label class="lab">${esc(t('logoEmoji'))}</label><input class="inp" id="g_logo" style="text-align:center;font-size:24px;padding:6px" maxlength="4" value="${esc(BRAND.logo || '🧭')}"></div>
-    <div class="fld"><label class="lab">${esc(t('logoUrl'))}</label><input class="inp" id="g_img" dir="ltr" placeholder="https://…" value="${esc(BRAND.logoImg || '')}"></div></div>
-    <button class="btn primary" data-act="g_save" style="width:100%">${ic('check')} ${esc(t('save'))}</button></div>`;
-}
 const prettyJson = s => { try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; } };
 async function admUsers() {
   const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
@@ -892,7 +892,6 @@ function openUserForm(username) {
     <div class="fld"><label class="lab">${esc(t('password'))}</label><input class="inp" id="u_pw" type="password" autocomplete="new-password" placeholder="${esc(ex ? t('pwKeep') : t('pw'))}"></div>
     <div class="fld"><label class="lab">${esc(t('role'))}</label><div class="chips" id="u_role"><button type="button" class="chip ${ex?.role === 'admin' ? '' : 'on'}" data-v="user">user</button><button type="button" class="chip ${ex?.role === 'admin' ? 'on' : ''}" data-v="admin">admin</button></div></div>
     <div class="fld" id="u_perms"><label class="lab">${esc(t('permissions'))}</label><div class="pm muted" style="font-weight:700"><span></span><span style="text-align:center">R</span><span style="text-align:center">W</span><span style="text-align:center">D</span></div>
-      <div class="pm" style="padding:6px 0;font-weight:800;color:var(--accent)" data-tab="*"><span>✨ ${esc(t('allTabsRead'))}</span><label class="c"><input type="checkbox" data-r="r" ${(pm['*'] || '').includes('r') ? 'checked' : ''}></label><span></span><span></span></div>
       ${r.tabs.map(tb => `<div class="pm" style="padding:6px 0;border-top:1px solid var(--border)" data-tab="${esc(tb.name)}"><span>${esc(tb.label)}</span>${['r', 'w', 'd'].map(c => `<label class="c"><input type="checkbox" data-r="${c}" ${(pm[tb.name] || '').includes(c) ? 'checked' : ''}></label>`).join('')}</div>`).join('')}</div>
     <div class="fld" style="display:flex;align-items:center;justify-content:space-between"><span class="lab" style="margin:0">${esc(t('active'))}</span><div class="switch ${ex?.active === false ? '' : 'on'}" id="u_active"></div></div>
     <button class="btn primary" data-u="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`);
@@ -910,31 +909,94 @@ function openUserForm(username) {
 async function admTabs() {
   const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
   try {
-    const r = await api('admin_tabs');
-    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><b>${tb.icon} ${esc(tb.label)}</b> ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
+    const r = await api('admin_tabs'); S.admTabs = r.tabs;
+    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><b>${tb.icon} ${esc(tb.label)}</b> ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}</div><button class="btn" data-act="tab_edit" data-id="${esc(tb.name)}">✏️ ${esc(S.lang === 'ar' ? 'تعديل' : 'Edit')}</button></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge" ${f.calc ? `title="${esc(f.calc)}"` : ''} style="${f.hidden ? 'opacity:.5' : ''}">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
   } catch (e) { adminErr(e); }
 }
-function openTabBuilder() {
-  const rows = [{ label: '', ar: '', type: 'text', req: false, options: '' }];
+function openTabBuilder(tabName) {
+  const L = (en, ar) => S.lang === 'ar' ? ar : en;
+  const edit = tabName ? (S.admTabs || []).find(x => x.name === tabName) : null;
+  const newRow = () => ({ orig: '', label: '', ar: '', type: 'text', req: false, options: '' });
+  const rows = edit ? edit.fields.map(f => ({ orig: f.key, label: f.label, ar: f.ar || '', type: f.type, req: !!f.req, readonly: !!f.readonly, hidden: !!f.hidden, options: f.lookup ? '' : (f.options || []).join(', '), calc: f.calc || '', showIf: f.showIf || '', reqIf: f.reqIf || '', lookup: f.lookup || '', maxMB: f.maxMB ?? '', maxFiles: f.maxFiles ?? '', min: f.min ?? '', max: f.max ?? '' })) : [newRow()];
   const TYPES = Object.keys(T_TYPES.en);
-  const o = openSheet(`<div class="hd"><h3>${esc(t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="📄" style="text-align:center"></div></div>
+  const QOPS = {
+    days: [L('Days between two dates', 'عدد الأيام بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DAYS(${b}, ${a})`],
+    months: [L('Months between two dates', 'عدد الشهور بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `MONTHS(${b}, ${a})`],
+    years: [L('Years between two dates (age)', 'عدد السنين بين تاريخين (العمر)'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `YEARS(${b}, ${a})`],
+    adddays: [L('Add days to a date', 'إضافة أيام لتاريخ'), L('Date', 'التاريخ'), L('Days', 'عدد الأيام'), (a, b) => `ADDDAYS(${a}, ${b})`],
+    addmonths: [L('Add months to a date', 'إضافة شهور لتاريخ'), L('Date', 'التاريخ'), L('Months', 'عدد الشهور'), (a, b) => `ADDMONTHS(${a}, ${b})`],
+    add: [L('Add (first + second)', 'جمع (الأول + الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} + ${b}`],
+    sub: [L('Subtract (first − second)', 'طرح (الأول − الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} - ${b}`],
+    mul: [L('Multiply (first × second)', 'ضرب (الأول × الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} * ${b}`],
+    div: [L('Divide (first ÷ second)', 'قسمة (الأول ÷ الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} / ${b}`],
+    pct: [L('Percentage (first × second%)', 'نسبة مئوية (الأول × الثاني%)'), L('Amount', 'المبلغ'), L('Percent', 'النسبة'), (a, b) => `${a} * ${b} / 100`]
+  };
+  const FNS = [['DAYS', L('Days between (end, start)', 'أيام بين تاريخين (النهاية، البداية)')], ['MONTHS', L('Months between (end, start)', 'شهور بين تاريخين')], ['YEARS', L('Years between (end, start)', 'سنين بين تاريخين')], ['ADDDAYS', L('Add days (date, n)', 'إضافة أيام (التاريخ، عدد)')], ['ADDMONTHS', L('Add months (date, n)', 'إضافة شهور (التاريخ، عدد)')], ['TODAY', L('Today', 'تاريخ اليوم')], ['IF', L('If (condition, yes, no)', 'لو (الشرط، نعم، لا)')], ['ROUND', L('Round (x, digits)', 'تقريب (الرقم، عدد الخانات)')], ['MAX', L('Max', 'أكبر قيمة')], ['MIN', L('Min', 'أصغر قيمة')], ['SUM', L('Sum', 'مجموع')], ['AVG', L('Average', 'متوسط')], ['ABS', L('Absolute value', 'القيمة المطلقة')], ['CONCAT', L('Join text', 'دمج نصوص')]];
+  const o = openSheet(`<div class="hd"><h3>${esc(edit ? L('Edit tab', 'تعديل الصفحة') : t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name" value="${esc(edit ? edit.label : '')}"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar" value="${esc(edit ? edit.ar || '' : '')}"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="${esc(edit ? edit.icon || '📄' : '📄')}" style="text-align:center"></div></div>
+    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
     <label class="lab">${esc(t('fields'))}</label><div id="b_rows"></div><button class="btn" data-b="add" style="width:100%;margin:6px 0 14px">${ic('plus')} ${esc(t('addField'))}</button><button class="btn primary" data-b="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`, { wide: true });
-  const draw = () => { $('#b_rows', o).innerHTML = rows.map((r, i) => `<div class="card" style="margin-bottom:8px;padding:10px" data-i="${i}"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input class="inp" data-p="label" placeholder="${esc(t('label'))}" value="${esc(r.label)}"><input class="inp" data-p="ar" placeholder="${esc(t('labelAr'))}" value="${esc(r.ar)}"><select class="inp" data-p="type">${TYPES.map(x => `<option value="${x}" ${r.type === x ? 'selected' : ''}>${esc(typeName(x))}</option>`).join('')}</select>
-    <div style="display:flex;align-items:center;gap:8px"><label class="chip ${r.req ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="req" ${r.req ? 'checked' : ''}>${esc(t('required'))}</label><button class="btn icon danger" data-rm="${i}">${ic('trash')}</button></div></div>
-    ${['select', 'multiselect'].includes(r.type) ? `<input class="inp" style="margin-top:8px" data-p="options" placeholder="${esc(t('options'))}" value="${esc(r.options)}">` : ''}${r.type === 'calc' ? `<input class="inp" style="margin-top:8px" data-p="calc" dir="ltr" placeholder="{Qty}*{Price}" value="${esc(r.calc || '')}">` : ''}${r.type === 'file' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="maxMB" placeholder="max MB" value="${esc(r.maxMB || '')}"><input class="inp" type="number" data-p="maxFiles" placeholder="max files" value="${esc(r.maxFiles || '')}"></div>` : ''}
-    <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${esc(t('advanced'))}</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" data-p="showIf" dir="ltr" placeholder="showIf: Status=Hired" value="${esc(r.showIf || '')}"><input class="inp" data-p="reqIf" dir="ltr" placeholder="reqIf: Status=Hired" value="${esc(r.reqIf || '')}"><input class="inp" data-p="lookup" dir="ltr" placeholder="lookup: Clients.Company" value="${esc(r.lookup || '')}"></div></details></div>`).join(''); };
+
+  const prevCols = i => rows.slice(0, i).filter(r => r.label.trim() && r.type !== 'file').map(r => r.label.trim());
+  const fillCols = sel => { const cur = sel.value, i = +sel.closest('[data-i]').dataset.i; sel.innerHTML = `<option value="">${esc(sel.dataset.ph || '—')}</option>${sel.dataset.today ? `<option value="__today">📅 ${esc(L('Today', 'اليوم'))}</option>` : ''}${prevCols(i).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}`; sel.value = cur; };
+  const sample = () => { const d = {}; rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; d[key] = r.type === 'date' ? new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10) : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d) : r.type === 'checkbox' ? 1 : 'abc'; }); return d; };
+  const prevCalc = i => { const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; } const v = calcVal(r.calc, sample()); el.style.color = v === '' ? 'var(--err)' : 'var(--ok)'; el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v; };
+  const ins = (inp, txt, back = 0) => { const a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a; inp.value = inp.value.slice(0, a) + txt + inp.value.slice(z); const pos = a + txt.length - back; inp.focus(); inp.setSelectionRange(pos, pos); inp.dispatchEvent(new Event('input', { bubbles: true })); };
+  const calcBox = (r, i) => `<div style="margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--line,#475569)">
+      <input class="inp" data-p="calc" dir="ltr" placeholder="{Qty}*{Price}   |   DAYS({End}, {Start})" value="${esc(r.calc || '')}">
+      <div data-prev class="muted" style="font-size:12px;margin:6px 0"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <select class="inp" data-cols data-ins style="flex:1;min-width:130px" data-ph="${esc(L('＋ Column…', '＋ أدخل عمود…'))}"></select>
+        ${[['+', '+'], ['-', '−'], ['*', '×'], ['/', '÷'], ['(', '('], [')', ')']].map(([v, s]) => `<button type="button" class="btn" data-op="${v}" style="min-width:38px">${s}</button>`).join('')}
+        <select class="inp" data-fn style="flex:1;min-width:130px"><option value="">${esc(L('＋ Function…', '＋ دالة…'))}</option>${FNS.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>
+      </div>
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px;font-weight:600">${esc(L('⚡ Quick helper — no typing', '⚡ مساعد سريع — من غير كتابة'))}</summary>
+        <div style="display:grid;gap:8px;margin-top:8px">
+          <select class="inp" data-q="op">${Object.entries(QOPS).map(([k, v]) => `<option value="${k}">${esc(v[0])}</option>`).join('')}</select>
+          <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;align-items:center"><span class="muted" data-ql="a" style="grid-column:1/3;font-size:12px"></span><select class="inp" data-cols data-q="a" data-today="1" data-ph="${esc(L('Pick column', 'اختر عمود'))}"></select><input class="inp" data-q="an" inputmode="decimal" dir="ltr" placeholder="${esc(L('or #', 'أو رقم'))}"></div>
+          <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;align-items:center"><span class="muted" data-ql="b" style="grid-column:1/3;font-size:12px"></span><select class="inp" data-cols data-q="b" data-today="1" data-ph="${esc(L('Pick column', 'اختر عمود'))}"></select><input class="inp" data-q="bn" inputmode="decimal" dir="ltr" placeholder="${esc(L('or #', 'أو رقم'))}"></div>
+          <button type="button" class="btn primary" data-qgo>${esc(L('Build formula', 'اعمل الصيغة'))}</button>
+        </div></details></div>`;
+  const draw = () => {
+    $('#b_rows', o).innerHTML = rows.map((r, i) => `<div class="card" style="margin-bottom:8px;padding:10px;${r.hidden ? 'opacity:.55' : ''}" data-i="${i}"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input class="inp" data-p="label" placeholder="${esc(t('label'))}" value="${esc(r.label)}"><input class="inp" data-p="ar" placeholder="${esc(t('labelAr'))}" value="${esc(r.ar)}"><select class="inp" data-p="type">${TYPES.map(x => `<option value="${x}" ${r.type === x ? 'selected' : ''}>${esc(typeName(x))}</option>`).join('')}</select>
+    <div style="display:flex;align-items:center;gap:8px"><label class="chip ${r.req ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="req" ${r.req ? 'checked' : ''}>${esc(t('required'))}</label>${r.orig ? `<label class="chip ${r.hidden ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="hidden" ${r.hidden ? 'checked' : ''}>${esc(L('Hide', 'إخفاء'))}</label>` : `<button class="btn icon danger" data-rm="${i}">${ic('trash')}</button>`}</div></div>
+    ${['select', 'multiselect'].includes(r.type) ? `<input class="inp" style="margin-top:8px" data-p="options" placeholder="${esc(t('options'))}" value="${esc(r.options)}">` : ''}${r.type === 'calc' ? calcBox(r, i) : ''}${r.type === 'number' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="min" placeholder="min" value="${esc(r.min ?? '')}"><input class="inp" type="number" data-p="max" placeholder="max" value="${esc(r.max ?? '')}"></div>` : ''}${r.type === 'file' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="maxMB" placeholder="max MB" value="${esc(r.maxMB || '')}"><input class="inp" type="number" data-p="maxFiles" placeholder="max files" value="${esc(r.maxFiles || '')}"></div>` : ''}
+    <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${esc(t('advanced'))}</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" data-p="showIf" dir="ltr" placeholder="showIf: Status=Hired" value="${esc(r.showIf || '')}"><input class="inp" data-p="reqIf" dir="ltr" placeholder="reqIf: Status=Hired" value="${esc(r.reqIf || '')}"><input class="inp" data-p="lookup" dir="ltr" placeholder="lookup: Clients.Company" value="${esc(r.lookup || '')}"><label class="chip ${r.readonly ? 'on' : ''}" style="text-align:center"><input type="checkbox" hidden data-p="readonly" ${r.readonly ? 'checked' : ''}>${esc(L('Read-only', 'قراءة فقط'))}</label></div></details></div>`).join('');
+    $$('[data-cols]', o).forEach(fillCols); $$('[data-q="op"]', o).forEach(s => qLabels(s));
+    rows.forEach((r, i) => { if (r.type === 'calc') prevCalc(i); });
+  };
+  const qLabels = sel => { const box = sel.closest('[data-i]'), q = QOPS[sel.value]; $('[data-ql="a"]', box).textContent = q[1]; $('[data-ql="b"]', box).textContent = q[2]; };
   draw();
-  o.addEventListener('input', e => { const p = e.target.dataset.p; if (!p) return; const i = +e.target.closest('[data-i]').dataset.i; rows[i][p] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; });
-  o.addEventListener('change', e => { const p = e.target.dataset.p; if (p === 'type' || p === 'req') draw(); });
+  o.addEventListener('focusin', e => { if (e.target.matches('[data-cols]')) fillCols(e.target); });
+  o.addEventListener('input', e => { const p = e.target.dataset.p; if (!p) return; const i = +e.target.closest('[data-i]').dataset.i; rows[i][p] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; if (p === 'calc' || p === 'label' || p === 'type') rows.forEach((r, k) => { if (r.type === 'calc') prevCalc(k); }); });
+  o.addEventListener('change', e => {
+    const d = e.target.dataset, p = d.p, box = e.target.closest('[data-i]');
+    if (d.ins !== undefined) { if (e.target.value) ins($('[data-p="calc"]', box), `{${e.target.value}}`); e.target.value = ''; return; }
+    if (d.fn !== undefined) { const f = e.target.value; if (f) ins($('[data-p="calc"]', box), f + '()', 1); e.target.value = ''; return; }
+    if (d.q === 'op') return qLabels(e.target);
+    if (p === 'type' || p === 'req' || p === 'hidden' || p === 'readonly') draw();
+  });
   o.addEventListener('click', async e => {
+    const op = e.target.closest('[data-op]');
+    if (op) { ins($('[data-p="calc"]', op.closest('[data-i]')), op.dataset.op); return; }
+    const go = e.target.closest('[data-qgo]');
+    if (go) {
+      const box = go.closest('[data-i]'), q = k => $(`[data-q="${k}"]`, box);
+      const val = k => { const n = q(k + 'n').value.trim(); if (n !== '') return isNaN(Number(n)) ? '' : n; const c = q(k).value; return c === '__today' ? 'TODAY()' : c ? `{${c}}` : ''; };
+      const a = val('a'), b = val('b');
+      if (!a || !b) return toast(L('Pick both values (a column, Today, or a number)', 'اختار القيمتين (عمود أو اليوم أو رقم)'), 'err');
+      const inp = $('[data-p="calc"]', box); inp.value = QOPS[q('op').value][3](a, b); inp.dispatchEvent(new Event('input', { bubbles: true })); return;
+    }
     const b = e.target.closest('[data-b]'), rm = e.target.closest('[data-rm]');
-    if (rm) { rows.splice(+rm.dataset.rm, 1); if (!rows.length) rows.push({ label: '', ar: '', type: 'text', options: '' }); return draw(); }
-    if (!b) return; if (b.dataset.b === 'x') return closeSheet(); if (b.dataset.b === 'add') { rows.push({ label: '', ar: '', type: 'text', options: '' }); draw(); return; }
+    if (rm) { rows.splice(+rm.dataset.rm, 1); if (!rows.length) rows.push(newRow()); return draw(); }
+    if (!b) return; if (b.dataset.b === 'x') return closeSheet(); if (b.dataset.b === 'add') { rows.push(newRow()); draw(); return; }
     b.disabled = true;
     try {
-      await api('admin_createTab', { name: $('#b_name', o).value.trim(), label: $('#b_name', o).value.trim(), ar: $('#b_ar', o).value.trim(), icon: $('#b_icon', o).value.trim() || '📄', fields: rows.map(r => ({ ...r, options: r.options ? r.options.split(',').map(s => s.trim()).filter(Boolean) : [] })) });
-      toast(t('tabCreated')); closeSheet(true); await refresh(); renderApp(); S.view = { kind: 'admin', tab: S.view.tab, admin: 'tabs' }; renderApp();
+      const fields = rows.filter(r => r.label.trim()).map(r => ({ ...r, options: r.options ? r.options.split(',').map(s => s.trim()).filter(Boolean) : [] }));
+      const head = { label: $('#b_name', o).value.trim(), ar: $('#b_ar', o).value.trim(), icon: $('#b_icon', o).value.trim() || '📄', fields };
+      if (edit) { await api('admin_updateTab', { name: edit.name, ...head }); toast(L('Tab updated', 'تم تحديث الصفحة')); }
+      else { await api('admin_createTab', { name: head.label, ...head }); toast(t('tabCreated')); }
+      closeSheet(true); await refresh(); renderApp(); S.view = { kind: 'admin', tab: S.view.tab, admin: 'tabs' }; renderApp();
     } catch (er) { b.disabled = false; adminErr(er); }
   });
 }
@@ -954,23 +1016,11 @@ document.addEventListener('click', async e => {
     case 'open': { const sg = $('#sugg'); if (sg) sg.style.display = 'none'; openRecord(id); break; }
     case 'more': S.limit += CONFIG.PAGE; renderList(); break;
     case 'layout': S.layout = (S.layout || (innerWidth >= 1024 ? 'table' : 'cards')) === 'table' ? 'cards' : 'table'; renderTabShell(); break;
-    case 'tview': S.tabView[S.view.tab] = id; renderTabShell(); break;
-    case 'dfilter': S.filter[S.view.tab] = id || null; S.tabView[S.view.tab] = 'list'; renderTabShell(); break;
-    case 'export': exportXlsx(); break;
-    case 'g_save': {
-      const brand = clone(BRAND);
-      brand.name.en = $('#g_en').value.trim() || 'HR Ops'; brand.name.ar = $('#g_ar').value.trim();
-      brand.logo = $('#g_logo').value.trim() || '🧭'; brand.logoImg = $('#g_img').value.trim();
-      if (S.lang === 'ar') brand.tag.ar = $('#g_tag').value.trim(); else brand.tag.en = $('#g_tag').value.trim();
-      localStorage.setItem('hr_brand', JSON.stringify(brand)); Object.assign(BRAND, brand);
-      try { await api('admin_saveSettings', { settings: brand }); } catch (er) { adminErr(er); }
-      toast(t('userSaved')); renderApp(); break;
-    }
     case 'alerts': S.view = { ...S.view, kind: 'admin', admin: 'overview' }; renderApp(); break;
     case 'adm': S.view.admin = id; renderApp(); break;
     case 'ack': try { await api('admin_ackAlert', { id }); admOverview(); } catch (er) { adminErr(er); } break;
     case 'unlock': try { await api('admin_userAction', { username: id, op: 'unlock' }); toast(t('unlock') + ' ✓'); admOverview(); } catch (er) { adminErr(er); } break;
-    case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break;
+    case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break; case 'tab_edit': openTabBuilder(id); break;
     case 'aq_apply': S.auditQ = { page: 0, filters: { user: $('#aq_user').value, tab: $('#aq_tab').value, action: $('#aq_action').value, text: $('#aq_text').value.trim(), from: $('#aq_from').value, to: $('#aq_to').value } }; admAudit(); break;
     case 'apage': S.auditQ.page = Math.max(0, S.auditQ.page + Number(id)); admAudit(); break;
   }
@@ -982,7 +1032,6 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
-  try { const sb = JSON.parse(localStorage.getItem('hr_brand') || 'null'); if (sb) Object.assign(BRAND, sb); } catch (e) {}
   S.lang = localStorage.getItem('hr_lang') || (navigator.language || '').startsWith('ar') ? (localStorage.getItem('hr_lang') || 'ar') : 'en';
   S.theme = localStorage.getItem('hr_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); applyTheme(); applyLang();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
