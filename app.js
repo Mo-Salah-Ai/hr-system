@@ -124,16 +124,15 @@ function cond(expr, data) {
 function calcVal(expr, data) {
   const DAY = 86400000, DRE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
   try {
-    const s = String(expr == null ? '' : expr).replace(/^\s*=/, ''), T = []; let i = 0, m;
+    const s = String(expr == null ? '' : expr), T = []; let i = 0, m;
     while (i < s.length) {
       const c = s[i], rest = s.slice(i);
       if (/\s/.test(c)) { i++; continue; }
       if ((m = /^(\d+\.?\d*|\.\d+)/.exec(rest))) { T.push({ t: 'n', v: parseFloat(m[1]) }); i += m[1].length; }
       else if (c === '{') { const j = s.indexOf('}', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
-      else if (c === '[') { const j = s.indexOf(']', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
       else if (c === '"' || c === "'") { const j = s.indexOf(c, i + 1); if (j < 0) return ''; T.push({ t: 's', v: s.slice(i + 1, j) }); i = j + 1; }
       else if ((m = /^[A-Za-z_]\w*/.exec(rest))) { T.push({ t: 'i', v: m[0] }); i += m[0].length; }
-      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%^&(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
+      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
       else return '';
     }
     let p = 0;
@@ -181,38 +180,21 @@ function calcVal(expr, data) {
       AVG: a => { const x = nums(a); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; },
       IF: a => truthy(a[0]) ? (a[1] === undefined ? null : a[1]) : (a[2] === undefined ? null : a[2]),
       AND: a => a.every(truthy) ? 1 : 0, OR: a => a.some(truthy) ? 1 : 0, NOT: a => truthy(a[0]) ? 0 : 1,
-      NOW: () => FN.TODAY(),
-      DATEDIF: a => { if (a[0] == null || a[1] == null) return null; const u = String(a[2] == null ? 'd' : a[2]).toLowerCase(); if (u === 'd') return must(a[1]).d - must(a[0]).d; const n = months(must(a[1]), must(a[0])); return u === 'm' ? n : u === 'y' ? Math.trunc(n / 12) : (() => { throw 0; })(); },
-      EDATE: a => a[0] == null ? null : addM(must(a[0]), nn(a[1])),
-      EOMONTH: a => { if (a[0] == null) return null; const dt = ymd(must(a[0])); return { d: Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1 + Math.trunc(nn(a[1])), 0) / DAY }; },
-      YEAR: a => a[0] == null ? null : ymd(must(a[0])).getUTCFullYear(),
-      MONTH: a => a[0] == null ? null : ymd(must(a[0])).getUTCMonth() + 1,
-      DAY: a => a[0] == null ? null : ymd(must(a[0])).getUTCDate(),
-      INT: a => Math.floor(nn(a[0])), MOD: a => nn(a[0]) % nn(a[1]), POWER: a => Math.pow(nn(a[0]), nn(a[1])), SQRT: a => Math.sqrt(nn(a[0])),
-      ROUNDUP: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.ceil(nn(a[0]) * k) / k; },
-      ROUNDDOWN: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.trunc(nn(a[0]) * k) / k; },
-      IFERROR: a => typeof a[0] === 'number' && !isFinite(a[0]) ? (a[1] === undefined ? null : a[1]) : a[0],
-      ISBLANK: a => a[0] == null || a[0] === '' ? 1 : 0,
-      LEN: a => FN.CONCAT([a[0]]).length, UPPER: a => FN.CONCAT([a[0]]).toUpperCase(), LOWER: a => FN.CONCAT([a[0]]).toLowerCase(), TRIM: a => FN.CONCAT([a[0]]).trim(),
-      LEFT: a => FN.CONCAT([a[0]]).slice(0, a.length > 1 ? nn(a[1]) : 1), RIGHT: a => { const s = FN.CONCAT([a[0]]), n = a.length > 1 ? nn(a[1]) : 1; return n <= 0 ? '' : s.slice(-n); },
       CONCAT: a => a.map(v => isD(v) ? toStr(v) : v == null ? '' : String(v)).join('')
     };
     const toStr = v => { const dt = ymd(v), z = n => (n < 10 ? '0' : '') + n, base = dt.getUTCFullYear() + '-' + z(dt.getUTCMonth() + 1) + '-' + z(dt.getUTCDate()); return Number.isInteger(v.d) ? base : base + 'T' + z(dt.getUTCHours()) + ':' + z(dt.getUTCMinutes()); };
     const peek = v => T[p] && T[p].t === 'o' && T[p].v === v;
     const expr0 = () => {
-      let a = cat();
-      while (T[p] && T[p].t === 'o' && ['<', '>', '<=', '>=', '=', '==', '!=', '<>'].indexOf(T[p].v) >= 0) { const op = T[p++].v; a = cmp(op, a, cat()); }
+      let a = add();
+      while (T[p] && T[p].t === 'o' && ['<', '>', '<=', '>=', '=', '==', '!=', '<>'].indexOf(T[p].v) >= 0) { const op = T[p++].v; a = cmp(op, a, add()); }
       return a;
     };
-    const cat = () => { let a = add(); while (peek('&')) { p++; const b = add(); a = FN.CONCAT([a, b]); } return a; };
     const add = () => { let a = mul(); while (peek('+') || peek('-')) { const op = T[p++].v; a = arith(op, a, mul()); } return a; };
-    const mul = () => { let a = pw(); while (peek('*') || peek('/') || peek('%')) { const op = T[p++].v; a = arith(op, a, pw()); } return a; };
-    const pw = () => { let a = un(); while (peek('^')) { p++; const b = un(); a = a == null || b == null ? null : Math.pow(nn(a), nn(b)); } return a; };
+    const mul = () => { let a = un(); while (peek('*') || peek('/') || peek('%')) { const op = T[p++].v; a = arith(op, a, un()); } return a; };
     const un = () => { if (peek('-')) { p++; const v = un(); return v == null ? null : -nn(v); } if (peek('+')) { p++; return un(); } return prim(); };
     const prim = () => {
       const k = T[p++]; if (!k) throw 0;
-      if (k.t === 'n') return k.v;
-      if (k.t === 's') { const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k.v); return dm ? { d: Date.UTC(+dm[1], +dm[2] - 1, +dm[3]) / DAY } : k.v; }
+      if (k.t === 'n' || k.t === 's') return k.v;
       if (k.t === 'r') return ref(k.v);
       if (k.t === 'o' && k.v === '(') { const v = expr0(); if (!peek(')')) throw 0; p++; return v; }
       if (k.t === 'i') {
@@ -221,8 +203,6 @@ function calcVal(expr, data) {
           if (peek(')')) p++; else { for (;;) { args.push(expr0()); if (peek(',')) { p++; continue; } if (peek(')')) { p++; break; } throw 0; } }
           const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args);
         }
-        const U = k.v.toUpperCase();
-        if ((U === 'TRUE' || U === 'FALSE') && !(k.v in data)) return U === 'TRUE' ? 1 : 0;
         return ref(k.v);
       }
       throw 0;
@@ -940,21 +920,21 @@ function openTabBuilder(tabName) {
   const rows = edit ? edit.fields.map(f => ({ orig: f.key, label: f.label, ar: f.ar || '', type: f.type, req: !!f.req, readonly: !!f.readonly, hidden: !!f.hidden, options: f.lookup ? '' : (f.options || []).join(', '), calc: f.calc || '', showIf: f.showIf || '', reqIf: f.reqIf || '', lookup: f.lookup || '', maxMB: f.maxMB ?? '', maxFiles: f.maxFiles ?? '', min: f.min ?? '', max: f.max ?? '' })) : [newRow()];
   const TYPES = Object.keys(T_TYPES.en);
   const QOPS = {
-    days: [L('Days between two dates', 'عدد الأيام بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "d")`],
-    months: [L('Months between two dates', 'عدد الشهور بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "m")`],
-    years: [L('Years between two dates (age)', 'عدد السنين بين تاريخين (العمر)'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "y")`],
+    days: [L('Days between two dates', 'عدد الأيام بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DAYS(${b}, ${a})`],
+    months: [L('Months between two dates', 'عدد الشهور بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `MONTHS(${b}, ${a})`],
+    years: [L('Years between two dates (age)', 'عدد السنين بين تاريخين (العمر)'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `YEARS(${b}, ${a})`],
     adddays: [L('Add days to a date', 'إضافة أيام لتاريخ'), L('Date', 'التاريخ'), L('Days', 'عدد الأيام'), (a, b) => `ADDDAYS(${a}, ${b})`],
-    addmonths: [L('Add months to a date', 'إضافة شهور لتاريخ'), L('Date', 'التاريخ'), L('Months', 'عدد الشهور'), (a, b) => `EDATE(${a}, ${b})`],
+    addmonths: [L('Add months to a date', 'إضافة شهور لتاريخ'), L('Date', 'التاريخ'), L('Months', 'عدد الشهور'), (a, b) => `ADDMONTHS(${a}, ${b})`],
     add: [L('Add (first + second)', 'جمع (الأول + الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} + ${b}`],
     sub: [L('Subtract (first − second)', 'طرح (الأول − الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} - ${b}`],
     mul: [L('Multiply (first × second)', 'ضرب (الأول × الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} * ${b}`],
     div: [L('Divide (first ÷ second)', 'قسمة (الأول ÷ الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} / ${b}`],
     pct: [L('Percentage (first × second%)', 'نسبة مئوية (الأول × الثاني%)'), L('Amount', 'المبلغ'), L('Percent', 'النسبة'), (a, b) => `${a} * ${b} / 100`]
   };
-  const FNS = [['DATEDIF', L('DATEDIF (start, end, "d"/"m"/"y")', 'DATEDIF فرق تاريخين (البداية، النهاية، "d"/"m"/"y")')], ['DAYS', L('DAYS (end, start)', 'DAYS أيام بين تاريخين (النهاية، البداية)')], ['TODAY', L('TODAY', 'TODAY تاريخ اليوم')], ['EDATE', L('EDATE (date, months)', 'EDATE إضافة شهور (التاريخ، عدد)')], ['ADDDAYS', L('ADDDAYS (date, days)', 'ADDDAYS إضافة أيام (التاريخ، عدد)')], ['EOMONTH', L('EOMONTH (date, months)', 'EOMONTH آخر يوم في الشهر')], ['YEAR', L('YEAR', 'YEAR السنة')], ['MONTH', L('MONTH', 'MONTH الشهر')], ['DAY', L('DAY', 'DAY اليوم')], ['IF', L('IF (test, yes, no)', 'IF لو (الشرط، نعم، لا)')], ['IFERROR', L('IFERROR (x, instead)', 'IFERROR لو في خطأ')], ['AND', 'AND'], ['OR', 'OR'], ['SUM', L('SUM', 'SUM مجموع')], ['AVG', L('AVG (average)', 'AVG متوسط')], ['MIN', 'MIN'], ['MAX', 'MAX'], ['ROUND', L('ROUND (x, digits)', 'ROUND تقريب')], ['ROUNDUP', 'ROUNDUP'], ['ROUNDDOWN', 'ROUNDDOWN'], ['INT', 'INT'], ['MOD', L('MOD (x, y)', 'MOD باقي القسمة')], ['ABS', 'ABS'], ['CONCAT', L('CONCAT (join text)', 'CONCAT دمج نصوص')], ['LEFT', 'LEFT'], ['RIGHT', 'RIGHT'], ['LEN', 'LEN'], ['UPPER', 'UPPER'], ['LOWER', 'LOWER'], ['TRIM', 'TRIM']];
+  const FNS = [['DAYS', L('Days between (end, start)', 'أيام بين تاريخين (النهاية، البداية)')], ['MONTHS', L('Months between (end, start)', 'شهور بين تاريخين')], ['YEARS', L('Years between (end, start)', 'سنين بين تاريخين')], ['ADDDAYS', L('Add days (date, n)', 'إضافة أيام (التاريخ، عدد)')], ['ADDMONTHS', L('Add months (date, n)', 'إضافة شهور (التاريخ، عدد)')], ['TODAY', L('Today', 'تاريخ اليوم')], ['IF', L('If (condition, yes, no)', 'لو (الشرط، نعم، لا)')], ['ROUND', L('Round (x, digits)', 'تقريب (الرقم، عدد الخانات)')], ['MAX', L('Max', 'أكبر قيمة')], ['MIN', L('Min', 'أصغر قيمة')], ['SUM', L('Sum', 'مجموع')], ['AVG', L('Average', 'متوسط')], ['ABS', L('Absolute value', 'القيمة المطلقة')], ['CONCAT', L('Join text', 'دمج نصوص')]];
   const o = openSheet(`<div class="hd"><h3>${esc(edit ? L('Edit tab', 'تعديل الصفحة') : t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name" value="${esc(edit ? edit.label : '')}"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar" value="${esc(edit ? edit.ar || '' : '')}"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="${esc(edit ? edit.icon || '📄' : '📄')}" style="text-align:center"></div></div>
-    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Formulas work like Excel: start with =, use column names or [Column Name]. Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
+    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
     <label class="lab">${esc(t('fields'))}</label><div id="b_rows"></div><button class="btn" data-b="add" style="width:100%;margin:6px 0 14px">${ic('plus')} ${esc(t('addField'))}</button><button class="btn primary" data-b="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`, { wide: true });
 
   const prevCols = i => rows.slice(0, i).filter(r => r.label.trim() && r.type !== 'file').map(r => r.label.trim());
@@ -963,11 +943,11 @@ function openTabBuilder(tabName) {
   const prevCalc = i => { const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; } const v = calcVal(r.calc, sample()); el.style.color = v === '' ? 'var(--err)' : 'var(--ok)'; el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v; };
   const ins = (inp, txt, back = 0) => { const a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a; inp.value = inp.value.slice(0, a) + txt + inp.value.slice(z); const pos = a + txt.length - back; inp.focus(); inp.setSelectionRange(pos, pos); inp.dispatchEvent(new Event('input', { bubbles: true })); };
   const calcBox = (r, i) => `<div style="margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--line,#475569)">
-      <input class="inp" data-p="calc" dir="ltr" placeholder="=Qty*Price    |    =DATEDIF(Start, End, &quot;d&quot;)    |    =[Total Fee]*2" value="${esc(r.calc || '')}">
+      <input class="inp" data-p="calc" dir="ltr" placeholder="{Qty}*{Price}   |   DAYS({End}, {Start})" value="${esc(r.calc || '')}">
       <div data-prev class="muted" style="font-size:12px;margin:6px 0"></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         <select class="inp" data-cols data-ins style="flex:1;min-width:130px" data-ph="${esc(L('＋ Column…', '＋ أدخل عمود…'))}"></select>
-        ${[['+', '+'], ['-', '−'], ['*', '×'], ['/', '÷'], ['^', '^'], ['&', '&'], ['(', '('], [')', ')']].map(([v, s]) => `<button type="button" class="btn" data-op="${v}" style="min-width:38px">${s}</button>`).join('')}
+        ${[['+', '+'], ['-', '−'], ['*', '×'], ['/', '÷'], ['(', '('], [')', ')']].map(([v, s]) => `<button type="button" class="btn" data-op="${v}" style="min-width:38px">${s}</button>`).join('')}
         <select class="inp" data-fn style="flex:1;min-width:130px"><option value="">${esc(L('＋ Function…', '＋ دالة…'))}</option>${FNS.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>
       </div>
       <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px;font-weight:600">${esc(L('⚡ Quick helper — no typing', '⚡ مساعد سريع — من غير كتابة'))}</summary>
