@@ -1159,6 +1159,12 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && S.
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
 /* ----------------------------- boot ----------------------------- */
+function hideSplash() {
+  const sp = document.getElementById('splash'); if (!sp || sp.dataset.h) return; sp.dataset.h = '1';
+  try { window.__spDone && window.__spDone(); } catch (e) {}
+  const wait = Math.max(0, 900 - (Date.now() - (window.__t0 || 0)));
+  setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 1000); }, wait + 250);
+}
 async function boot() {
   S.lang = localStorage.getItem('hr_lang') || (navigator.language || '').startsWith('ar') ? (localStorage.getItem('hr_lang') || 'ar') : 'en';
   S.theme = localStorage.getItem('hr_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); applyTheme(); applyLang();
@@ -1168,7 +1174,9 @@ async function boot() {
   if (!S.token) return renderLogin();
   await loadLocal(); S.user = await meta.get('user'); S.tabs = (await meta.get('schema')) || []; await refreshPending();
   if (!S.user || !S.tabs.length && !navigator.onLine) { return S.user ? renderApp() : renderLogin(); }
-  S.view.tab = S.tabs[0]?.name || null; renderApp(); startTimers();
+  S.view.tab = S.tabs[0]?.name || null; renderApp(); startTimers(); hideSplash();
   if (navigator.onLine) { try { await refresh(); renderApp(); flush(); } catch (e) { if (e.code === 'network') setOnline(false); } }
 }
-boot();
+boot().catch(e => console.error(e)).finally(hideSplash);
+setTimeout(hideSplash, 8000);
+window.addEventListener('error', () => setTimeout(hideSplash, 1500));
