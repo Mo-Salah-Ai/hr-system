@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="theme-color" content="#0f172a">
 <title>HR Ops ERP</title>
+<script>try{var t=localStorage.getItem('hr_theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=t;}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,9 +17,11 @@
   --accent:#38bdf8; --accent2:#a78bfa; --ok:#34d399; --warn:#fbbf24; --err:#f87171;
   --glow:0 0 0 1px rgba(56,189,248,.25),0 8px 30px -8px rgba(56,189,248,.35);
   --shadow:0 10px 40px -12px rgba(0,0,0,.6);
+  color-scheme:dark;
   --bgimg:radial-gradient(900px 500px at 85% -10%,rgba(56,189,248,.14),transparent 60%),radial-gradient(700px 500px at -10% 110%,rgba(167,139,250,.13),transparent 60%);
 }
 [data-theme=light]{
+  color-scheme:light;
   --bg:#f1f5f9; --bg2:#e8eef6; --surface:rgba(255,255,255,.78); --surface2:rgba(226,232,240,.6);
   --text:#0f172a; --muted:#64748b; --border:rgba(15,23,42,.1);
   --accent:#0284c7; --accent2:#7c3aed; --ok:#059669; --warn:#d97706; --err:#dc2626;
@@ -28,7 +31,8 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
-body{margin:0;background:var(--bg) var(--bgimg);background-attachment:fixed;color:var(--text);font-family:Inter,Cairo,system-ui,sans-serif;overscroll-behavior-y:contain}
+html{background-color:var(--bg)}
+body{margin:0;background-color:var(--bg);background-image:var(--bgimg);background-attachment:fixed;color:var(--text);font-family:Inter,Cairo,system-ui,sans-serif;overscroll-behavior-y:contain}
 [dir=rtl] body,[dir=rtl] input,[dir=rtl] textarea,[dir=rtl] select,[dir=rtl] button{font-family:Cairo,Inter,system-ui,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
 .ic{width:20px;height:20px;flex:none}
