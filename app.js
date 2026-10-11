@@ -1,569 +1,846 @@
-/* ============================================================
- * Nexus HR · Operations ERP — Frontend (app.js)
- * Mobile-first, offline-first SPA. Requires: index.html
- * ============================================================ */
 'use strict';
-
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwRyCxkctVn_hPEjbMJlsQoj9FNbkQzQV2OQUbedn7ps1-RVhoXbXJ7LME_Np1HoKzl/exec'; // /exec URL
-const APP_NAME = { en:'Nexus HR', ar:'نكسس للموارد البشرية' };
-
-/* ---------------- i18n ---------------- */
-const T = {
-  en:{ login:'Sign in', username:'Username', password:'Password', welcome:'Welcome back 👋',
-       loginBtn:'Login', wrongCreds:'Wrong credentials', locked:'Too many attempts. Try again in',
-       seconds:'s', synced:'Synced', offline:'Offline', pending:'pending', online:'online',
-       lastSeen:'Last seen', onlineSince:'Online since', save:'Send ➤', saving:'Sending…',
-       search:'Search…', edit:'Edit', del:'Delete', confirmDel:'Delete this record?',
-       yes:'Delete', no:'Cancel', saved:'✅ Sent successfully', deleted:'🗑️ Deleted',
-       queued:'📴 Saved offline — will sync', admin:'Admin Console', users:'Users',
-       audit:'Audit Logs', presence:'Live Presence', addUser:'Add User', addTab:'New Tab',
-       tabName:'Tab name (EN)', tabNameAr:'Tab name (AR)', fields:'Fields (field:type:label, comma sep)',
-       create:'Create', fileHint:'Tap or drop a file', uploading:'Uploading', noRecords:'No records yet — tap ＋',
-       logout:'Signed out', formTitle:'New entry', editTitle:'Edit entry', role:'Role',
-       allowedTabs:'Allowed tabs', active:'Active', pass:'Password (blank = keep)', isAdmin:'Admin',
-       close:'Close', filterUser:'Filter by user', filterTab:'Filter by tab', minutesAgo:'min ago' },
-  ar:{ login:'تسجيل الدخول', username:'اسم المستخدم', password:'كلمة المرور', welcome:'أهلاً بعودتك 👋',
-       loginBtn:'دخول', wrongCreds:'بيانات غير صحيحة', locked:'محاولات كثيرة. حاول بعد',
-       seconds:'ث', synced:'متزامن', offline:'بدون اتصال', pending:'معلّق', online:'متصل',
-       lastSeen:'آخر ظهور', onlineSince:'متصل منذ', save:'إرسال ➤', saving:'جارٍ الإرسال…',
-       search:'بحث…', edit:'تعديل', del:'حذف', confirmDel:'حذف هذا السجل؟',
-       yes:'حذف', no:'إلغاء', saved:'✅ تم الإرسال بنجاح', deleted:'🗑️ تم الحذف',
-       queued:'📴 حُفظ محلياً — سيُزامَن', admin:'لوحة التحكم', users:'المستخدمون',
-       audit:'سجل العمليات', presence:'الحضور المباشر', addUser:'إضافة مستخدم', addTab:'تبويب جديد',
-       tabName:'اسم التبويب (EN)', tabNameAr:'اسم التبويب (AR)', fields:'الحقول (field:type:label)',
-       create:'إنشاء', fileHint:'اضغط أو أسقط ملفاً', uploading:'جارٍ الرفع', noRecords:'لا سجلات بعد — اضغط ＋',
-       logout:'تم تسجيل الخروج', formTitle:'إدخال جديد', editTitle:'تعديل الإدخال', role:'الدور',
-       allowedTabs:'التبويبات المسموحة', active:'نشط', pass:'كلمة المرور (فارغ = بدون تغيير)', isAdmin:'مدير',
-       close:'إغلاق', filterUser:'تصفية بالمستخدم', filterTab:'تصفية بالتبويب', minutesAgo:'دقيقة' }
-};
-let lang = localStorage.getItem('lang') || 'en';
-const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
-
-/* ---------------- state ---------------- */
-const S = { token:null, user:null, tabs:[], schema:{}, records:{},
-            activeTab:null, editingId:null, online:navigator.onLine };
-try{ const saved = JSON.parse(localStorage.getItem('session')||'null');
-  if(saved){ S.token=saved.token; S.user=saved.user; S.tabs=saved.tabs; S.schema=saved.schema; } }catch(e){}
-
-/* ---------------- IndexedDB offline store ---------------- */
-const DB = { h:null,
-  open(){ return new Promise((res,rej)=>{
-    const r = indexedDB.open('nexus-erp',1);
-    r.onupgradeneeded = e=>{ const d=e.target.result;
-      d.createObjectStore('outbox',{keyPath:'clientOpId'});
-      d.createObjectStore('cache',{keyPath:'key'}); };
-    r.onsuccess = e=>{ DB.h=e.target.result; res(); }; r.onerror=rej; }); },
-  put(store,val){ return new Promise((res,rej)=>{ const tx=DB.h.transaction(store,'readwrite');
-    tx.objectStore(store).put(val); tx.oncomplete=res; tx.onerror=rej; }); },
-  all(store){ return new Promise((res,rej)=>{ const r=DB.h.transaction(store).objectStore(store).getAll();
-    r.onsuccess=()=>res(r.result||[]); r.onerror=rej; }); },
-  del(store,key){ return new Promise((res,rej)=>{ const tx=DB.h.transaction(store,'readwrite');
-    tx.objectStore(store).delete(key); tx.oncomplete=res; tx.onerror=rej; }); },
-  clear(store){ return new Promise((res,rej)=>{ const tx=DB.h.transaction(store,'readwrite');
-    tx.objectStore(store).clear(); tx.oncomplete=res; tx.onerror=rej; }); }
+/* =============================================================================
+   HR & Operations ERP — Frontend SPA (GitHub Pages)
+   Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
+   ============================================================================= */
+const CONFIG = {
+  API_URL: 'PASTE_YOUR_WEB_APP_URL_HERE',   // Apps Script Web App /exec URL
+  HEARTBEAT_MS: 30000,
+  SYNC_MS: 10000,
+  ADMIN_POLL_MS: 10000,
+  DEFAULT_MAX_MB: 5,
+  PAGE: 100
 };
 
-/* ---------------- toasts ---------------- */
-function toast(msg, type='ok'){
-  const colors = { ok:'border-emerald-400/40 text-emerald-300',
-    warn:'border-amber-400/40 text-amber-300', err:'border-rose-400/40 text-rose-300' };
-  const el = document.createElement('div');
-  el.className = `toast pointer-events-auto glass ${colors[type]} px-4 py-2.5 rounded-2xl text-sm font-semibold shadow-card max-w-xs text-center`;
-  el.textContent = msg;
-  document.getElementById('toasts').appendChild(el);
-  setTimeout(()=>{ el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),320); }, 2800);
-}
+/* ----------------------------- utilities ----------------------------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clone = o => JSON.parse(JSON.stringify(o));
+const debounce = (fn, ms = 120) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const hhmm = ms => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const fullTime = ms => ms ? new Date(ms).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' }) : '—';
 
-/* ---------------- sync indicator ---------------- */
-function setSync(mode, count=0){
-  const dot=document.getElementById('syncDot'), txt=document.getElementById('syncText');
-  dot.className = 'w-2 h-2 rounded-full ' + (mode==='ok'?'bg-emerald-400 sync-ok':mode==='warn'?'bg-amber-400':'bg-rose-400 animate-pulse');
-  txt.textContent = mode==='ok' ? t('synced') : `${t('offline')} · ${count} ${t('pending')}`;
-}
-async function refreshSyncBadge(){
-  if(!DB.h) return;
-  const q = await DB.all('outbox');
-  setSync(S.online ? (q.length?'warn':'ok') : 'err', q.length);
-  if(q.length) document.getElementById('syncDot').className='w-2 h-2 rounded-full bg-amber-400';
-}
-
-/* ---------------- API client with offline outbox ---------------- */
-async function api(action, params={}, method='GET', body=null){
-  const url = new URL(GAS_URL);
-  url.searchParams.set('action', action);
-  if(S.token) url.searchParams.set('token', S.token);
-  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k, typeof v==='string'?v:JSON.stringify(v)));
-  const res = await fetch(url, method==='POST'
-    ? { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify({token:S.token, action, ...body}) }
-    : {});
-  return res.json();
-}
-async function post(action, body){ return api(action,{},'POST',body); }
-
-async function queueOp(op){
-  op.clientOpId = op.clientOpId || (Date.now()+'_'+Math.random().toString(36).slice(2,7));
-  op.ts = Date.now();
-  await DB.put('outbox', op);
-  await refreshSyncBadge();
-  toast(t('queued'),'warn');
-}
-async function flushQueue(){
-  if(!S.online || !S.token) return;
-  const q = (await DB.all('outbox')).sort((a,b)=>a.ts-b.ts);
-  if(!q.length) return;
-  setSync('warn', q.length);
-  try{
-    const r = await post('syncQueue', { queue: q.map(({clientOpId,type,tabId,recordId,data})=>({clientOpId,type,tabId,recordId,data})) });
-    if(r.ok){
-      for(const res of r.results){
-        await DB.del('outbox', res.clientOpId);
-        if(!res.ok) console.warn('sync failed op', res);
-      }
-      toast('🔄 '+t('synced'),'ok');
-      if(S.activeTab) loadRecords(S.activeTab, true);
-      if(document.getElementById('adminView')?.dataset.open) renderAdmin();
-    }
-  }catch(e){}
-  await refreshSyncBadge();
-}
-
-/* ---------------- network watcher ---------------- */
-window.addEventListener('online', ()=>{ S.online=true; toast('🌐 Online','ok'); flushQueue(); refreshSyncBadge(); });
-window.addEventListener('offline',()=>{ S.online=false; setSync('err'); toast('📴 Offline mode','err'); });
-
-/* ---------------- UI helpers ---------------- */
-const $ = s=>document.querySelector(s);
-function openSheet(title, html){
-  $('#sheetTitle').textContent = title;
-  $('#sheetBody').innerHTML = html;
-  $('#sheet').classList.add('open'); $('#sheetBackdrop').classList.add('open');
-  gsap.fromTo('#sheetBody > *',{y:18,opacity:0},{y:0,opacity:1,stagger:.05,duration:.35,ease:'back.out(1.6)'});
-}
-function closeSheet(){ $('#sheet').classList.remove('open'); $('#sheetBackdrop').classList.remove('open'); }
-function openModal(html){ $('#modalBox').innerHTML = html; $('#modal').classList.add('open'); }
-function closeModal(){ $('#modal').classList.remove('open'); }
-$('#sheetClose').onclick = closeSheet;
-$('#sheetBackdrop').onclick = closeSheet;
-$('#modal').onclick = e=>{ if(e.target.id==='modal') closeModal(); };
-
-function fieldLabel(f){ return lang==='ar' ? (f.label_ar||f.label_en) : (f.label_en||f.label_ar); }
-
-/* ---------------- login view ---------------- */
-function renderLogin(){
-  $('#bottomNav').classList.add('hidden'); $('#fab').classList.add('hidden');
-  $('#fab').classList.remove('flex'); $('#userGreet').textContent='';
-  $('#main').innerHTML = `
-    <div class="min-h-[75vh] flex flex-col justify-center fade-in">
-      <div class="text-center mb-8">
-        <div class="w-20 h-20 mx-auto rounded-3xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-glow mb-4">
-          <span class="text-white font-extrabold text-3xl">N</span></div>
-        <h2 class="text-2xl font-extrabold">${APP_NAME[lang]}</h2>
-        <p class="text-sm opacity-60 mt-1">${t('welcome')}</p>
-      </div>
-      <div class="glass rounded-3xl p-6 space-y-4">
-        <input id="liUser" placeholder="${t('username')}" autocomplete="username"
-          class="w-full glass rounded-2xl px-4 py-3.5 text-sm bg-transparent placeholder:opacity-50">
-        <input id="liPass" type="password" placeholder="${t('password')}" autocomplete="current-password"
-          class="w-full glass rounded-2xl px-4 py-3.5 text-sm bg-transparent placeholder:opacity-50">
-        <button id="liBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-bold shadow-glow active:scale-[.98] transition">${t('loginBtn')}</button>
-        <p id="liErr" class="text-center text-xs text-rose-400 font-semibold min-h-[1rem]"></p>
-      </div>
-    </div>`;
-  const go = async ()=>{
-    const btn=$('#liBtn'); btn.disabled=true; btn.textContent='…';
-    $('#liErr').textContent='';
-    try{
-      const r = await api('login',{},'POST',{action:'login',username:$('#liUser').value.trim(),password:$('#liPass').value});
-      if(r.ok){
-        S.token=r.token; S.user=r.user; S.tabs=r.tabs; S.schema=r.schema;
-        localStorage.setItem('session', JSON.stringify({token:r.token,user:r.user,tabs:r.tabs,schema:r.schema}));
-        toast(`👋 ${r.user.displayName}`);
-        renderApp();
-      } else {
-        const err = r.error==='LOCKED' ? `${t('locked')} ${r.retryAfterSec}${t('seconds')}`
-          : r.error==='DISABLED' ? '⛔' : `${t('wrongCreds')} · ${r.remaining??''}`;
-        $('#liErr').textContent = err;
-        gsap.fromTo('#liBtn',{x:-8},{x:0,duration:.4,ease:'elastic.out(1,.3)'});
-      }
-    }catch(e){ $('#liErr').textContent='⚠️ network'; }
-    btn.disabled=false; btn.textContent=t('loginBtn');
-  };
-  $('#liBtn').onclick = go;
-  $('#liPass').onkeydown = e=>{ if(e.key==='Enter') go(); };
-}
-
-/* ---------------- app shell ---------------- */
-function renderApp(){
-  $('#appTitle').textContent = APP_NAME[lang];
-  $('#userGreet').textContent = S.user.displayName;
-  $('#adminBtn').classList.toggle('hidden', !S.user.isAdmin);
-  $('#adminBtn').classList.toggle('flex', S.user.isAdmin);
-  $('#bottomNav').classList.remove('hidden');
-  const fab=$('#fab'); fab.classList.remove('hidden'); fab.classList.add('flex');
-  renderNav();
-  if(S.tabs.length) switchTab(S.activeTab && S.tabs.some(x=>x.tabId===S.activeTab) ? S.activeTab : S.tabs[0].tabId);
-  else $('#main').innerHTML = `<p class="text-center opacity-50 mt-20">No tabs assigned</p>`;
-  startHeartbeat();
-}
-function renderNav(){
-  $('#navTabs').innerHTML = S.tabs.map(tab=>`
-    <button data-tab="${tab.tabId}" class="navBtn flex-none flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold transition whitespace-nowrap">
-      <span>${tab.icon||'📋'}</span><span>${lang==='ar'?tab.label_ar:tab.label_en}</span>
-    </button>`).join('');
-  document.querySelectorAll('.navBtn').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
-}
-function switchTab(tabId){
-  S.activeTab = tabId;
-  document.querySelectorAll('.navBtn').forEach(b=>{
-    const on = b.dataset.tab===tabId;
-    b.className = `navBtn flex-none flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold transition whitespace-nowrap ${
-      on ? 'bg-gradient-to-r from-cyan-400/30 to-blue-500/30 border border-cyan-400/40 text-cyan-300 shadow-glow'
-         : 'glass opacity-60'}`;
-  });
-  loadRecords(tabId);
-}
-
-/* ---------------- records (chat-feed style) ---------------- */
-async function loadRecords(tabId, silent=false){
-  const tab = S.tabs.find(x=>x.tabId===tabId);
-  if(!silent){
-    $('#main').innerHTML = Array(4).fill(`<div class="skel h-24 rounded-3xl mb-3"></div>`).join('');
+/* ----------------------------- i18n ----------------------------- */
+const I18N = {
+  en: {
+    appName: 'HR Ops', tagline: 'Recruitment & staffing platform', signIn: 'Sign in', username: 'Username', password: 'Password', login: 'Log in',
+    invalid: 'Invalid username or password', attemptsLeft: n => `${n} attempt(s) left before lockout`, lockedFor: s => `Too many attempts. Try again in ${s}`,
+    disabled: 'This account is disabled', logout: 'Log out', search: 'Search…', all: 'All', add: 'Add', save: 'Save', cancel: 'Cancel', del: 'Delete', edit: 'Edit',
+    saved: 'Saved', savedOffline: 'Saved on this device — will sync automatically', deleted: 'Deleted', undo: 'Undo', synced: 'Synchronized', syncing: 'Syncing…',
+    offlineN: n => n ? `Offline · ${n} pending` : 'Offline', pendingN: n => `${n} pending`, noData: 'Nothing here yet', noDataHint: 'Tap + to add the first record',
+    noTabs: 'No tabs are assigned to you. Ask your administrator.', required: 'Required', formMode: 'Form', chatMode: 'Chat', ask: l => `What is the ${l}?`,
+    skip: 'Skip', done: 'Done', yes: 'Yes', no: 'No', typeHere: 'Type your answer…', summary: 'All set! Here is what I have:', editInForm: 'Edit in form',
+    dropFiles: 'Drop files here or tap to choose', uploading: 'Uploading…', tooLarge: (n, m) => `${n} is larger than ${m} MB`, tooMany: m => `Maximum ${m} file(s)`, uploadWait: 'Please wait for uploads to finish',
+    admin: 'Admin', overview: 'Overview', users: 'Users', audit: 'Audit log', tabs: 'Tabs', onlineNow: 'Online now', totalUsers: 'Users', actionsToday: 'Changes today', openAlerts: 'Security alerts',
+    onlineSince: t => `Online since ${t}`, lastSeen: t => `Last seen ${t}`, never: 'Never', justNow: 'just now', minAgo: n => `${n} min ago`, hrAgo: n => `${n} h ago`, dayAgo: n => `${n} d ago`,
+    newUser: 'New user', editUser: 'Edit user', role: 'Role', permissions: 'Permissions', active: 'Active', unlock: 'Unlock', ack: 'Acknowledge', createTab: 'New tab', tabName: 'Tab name',
+    fields: 'Fields', addField: 'Add field', label: 'Label', labelAr: 'Arabic label', type: 'Type', options: 'Options (comma separated)', advanced: 'Advanced', from: 'From', to: 'To',
+    user: 'User', action: 'Action', details: 'Details', time: 'Time', record: 'Record', prev: 'Previous', next: 'Next', apply: 'Apply', conflictTitle: 'Edit conflict',
+    conflictBody: 'Someone changed these fields while you were offline.', keepMine: 'Keep mine', keepTheirs: 'Keep theirs', networkErr: 'No connection', sessionExpired: 'Session expired — please sign in again',
+    readOnly: 'View only', theme: 'Theme', language: 'Language', brute: 'Brute-force alert', locked: 'Locked', activity24: 'Activity — last 24 h', recent: 'Recent activity', noAlerts: 'No open alerts',
+    newRecord: 'New record', total: 'total', rows: 'rows', columns: 'Columns', icon: 'Icon', selectUser: 'Pick a user', allUsers: 'All', allTabs: 'All tabs', allActions: 'All actions',
+    tabCreated: 'Tab created — it is live for everyone', userSaved: 'User saved', pw: 'Password (min 8 chars)', pwKeep: 'Leave empty to keep current', status: 'Status', switchedChat: 'Chat entry',
+    permsChanged: 'Your permissions changed — reloading', saveFail: 'Could not save', confirmDel: 'Delete this record?', openFile: 'Open', fileOffline: 'File is stored on this device until you are online', mic: 'Voice input'
+  },
+  ar: {
+    appName: 'نظام العمليات', tagline: 'منصة التوظيف والاستقدام', signIn: 'تسجيل الدخول', username: 'اسم المستخدم', password: 'كلمة المرور', login: 'دخول',
+    invalid: 'اسم المستخدم أو كلمة المرور غير صحيحة', attemptsLeft: n => `متبقي ${n} محاولة قبل الإيقاف المؤقت`, lockedFor: s => `محاولات كثيرة. حاول بعد ${s}`,
+    disabled: 'هذا الحساب معطّل', logout: 'تسجيل الخروج', search: 'بحث…', all: 'الكل', add: 'إضافة', save: 'حفظ', cancel: 'إلغاء', del: 'حذف', edit: 'تعديل',
+    saved: 'تم الحفظ', savedOffline: 'تم الحفظ على جهازك — سيتم المزامنة تلقائياً', deleted: 'تم الحذف', undo: 'تراجع', synced: 'متزامن', syncing: 'جارٍ المزامنة…',
+    offlineN: n => n ? `بدون إنترنت · ${n} معلّق` : 'بدون إنترنت', pendingN: n => `${n} معلّق`, noData: 'لا توجد بيانات بعد', noDataHint: 'اضغط + لإضافة أول سجل',
+    noTabs: 'لا توجد صفحات مخصصة لك. تواصل مع المسؤول.', required: 'مطلوب', formMode: 'نموذج', chatMode: 'محادثة', ask: l => `ما هو ${l}؟`,
+    skip: 'تخطي', done: 'تم', yes: 'نعم', no: 'لا', typeHere: 'اكتب إجابتك…', summary: 'تمام! هذه هي البيانات:', editInForm: 'تعديل في النموذج',
+    dropFiles: 'اسحب الملفات هنا أو اضغط للاختيار', uploading: 'جارٍ الرفع…', tooLarge: (n, m) => `${n} أكبر من ${m} ميجابايت`, tooMany: m => `الحد الأقصى ${m} ملف`, uploadWait: 'انتظر انتهاء الرفع',
+    admin: 'الإدارة', overview: 'نظرة عامة', users: 'المستخدمون', audit: 'سجل التدقيق', tabs: 'الصفحات', onlineNow: 'متصل الآن', totalUsers: 'المستخدمون', actionsToday: 'تعديلات اليوم', openAlerts: 'تنبيهات الأمان',
+    onlineSince: t => `متصل منذ ${t}`, lastSeen: t => `آخر ظهور ${t}`, never: 'أبداً', justNow: 'الآن', minAgo: n => `منذ ${n} دقيقة`, hrAgo: n => `منذ ${n} ساعة`, dayAgo: n => `منذ ${n} يوم`,
+    newUser: 'مستخدم جديد', editUser: 'تعديل مستخدم', role: 'الدور', permissions: 'الصلاحيات', active: 'نشط', unlock: 'فك القفل', ack: 'تم الاطلاع', createTab: 'صفحة جديدة', tabName: 'اسم الصفحة',
+    fields: 'الحقول', addField: 'إضافة حقل', label: 'العنوان', labelAr: 'العنوان بالعربية', type: 'النوع', options: 'الخيارات (مفصولة بفواصل)', advanced: 'متقدم', from: 'من', to: 'إلى',
+    user: 'المستخدم', action: 'الإجراء', details: 'التفاصيل', time: 'الوقت', record: 'السجل', prev: 'السابق', next: 'التالي', apply: 'تطبيق', conflictTitle: 'تعارض في التعديل',
+    conflictBody: 'قام شخص آخر بتغيير هذه الحقول أثناء عدم اتصالك.', keepMine: 'احتفظ بتعديلي', keepTheirs: 'احتفظ بتعديلهم', networkErr: 'لا يوجد اتصال', sessionExpired: 'انتهت الجلسة — سجّل الدخول مجدداً',
+    readOnly: 'للعرض فقط', theme: 'المظهر', language: 'اللغة', brute: 'تنبيه محاولات اختراق', locked: 'مقفل', activity24: 'النشاط — آخر ٢٤ ساعة', recent: 'آخر الأنشطة', noAlerts: 'لا توجد تنبيهات مفتوحة',
+    newRecord: 'سجل جديد', total: 'إجمالي', rows: 'صف', columns: 'الأعمدة', icon: 'أيقونة', selectUser: 'اختر مستخدماً', allUsers: 'الكل', allTabs: 'كل الصفحات', allActions: 'كل الإجراءات',
+    tabCreated: 'تم إنشاء الصفحة — أصبحت متاحة للجميع', userSaved: 'تم حفظ المستخدم', pw: 'كلمة المرور (٨ أحرف على الأقل)', pwKeep: 'اتركها فارغة للإبقاء على الحالية', status: 'الحالة', switchedChat: 'إدخال بالمحادثة',
+    permsChanged: 'تغيّرت صلاحياتك — جارٍ التحديث', saveFail: 'تعذّر الحفظ', confirmDel: 'حذف هذا السجل؟', openFile: 'فتح', fileOffline: 'الملف محفوظ على جهازك حتى تتصل بالإنترنت', mic: 'إدخال صوتي'
   }
-  if(!S.online){
-    const c = await DB.all('cache');
-    const hit = c.find(x=>x.key==='rec_'+tabId);
-    S.records[tabId] = hit? hit.records : [];
-    renderRecords(tabId); return;
-  }
-  try{
-    const r = await api('records',{tabId});
-    if(!r.ok) throw 0;
-    S.records[tabId]=r.records;
-    DB.put('cache',{key:'rec_'+tabId, records:r.records, ts:Date.now()});
-  }catch(e){
-    const c = await DB.all('cache');
-    const hit = c.find(x=>x.key==='rec_'+tabId);
-    S.records[tabId] = hit? hit.records : [];
-  }
-  renderRecords(tabId);
-}
-
-function renderRecords(tabId){
-  const fields = (S.schema[tabId]||[]).filter(f=>f.visible);
-  const recs = S.records[tabId]||[];
-  const titleField = fields[0]?.field;
-  const html = `
-    <div class="relative mb-3">
-      <input id="searchBox" placeholder="${t('search')}" class="w-full glass rounded-2xl ps-10 pe-4 py-3 text-sm bg-transparent placeholder:opacity-50">
-      <span class="absolute start-3.5 top-1/2 -translate-y-1/2 opacity-40">🔍</span>
-    </div>
-    <div id="feed" class="space-y-2.5"></div>`;
-  $('#main').innerHTML = html;
-  gsap.fromTo('#main > *',{y:14,opacity:0},{y:0,opacity:1,stagger:.06,duration:.35,ease:'power2.out'});
-  const draw = q=>{
-    const list = recs.filter(r=>!q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
-    $('#feed').innerHTML = list.length ? list.map((r,i)=>cardHtml(r,fields,titleField,i)).join('')
-      : `<p class="text-center opacity-40 text-sm py-16">${t('noRecords')}</p>`;
-    bindCards(tabId);
-  };
-  draw('');
-  $('#searchBox').oninput = e=>draw(e.target.value);
-}
-
-function cardHtml(r, fields, titleField, i){
-  const rows = fields.filter(f=>f.field!==titleField && r[f.field]!=='' && r[f.field]!==undefined)
-    .map(f=>`<div class="flex justify-between gap-3 text-xs py-1 border-b border-white/5 last:border-0">
-      <span class="opacity-50">${fieldLabel(f)}</span>
-      <span class="font-semibold text-end break-all">${formatVal(r[f.field],f)}</span></div>`).join('');
-  return `<div class="bubble bubble-tail glass p-4 card-lift cursor-pointer" data-id="${r.recordId}" style="animation:toastIn .3s ${i*0.05}s both">
-    <div class="flex items-center justify-between mb-1.5">
-      <h3 class="font-bold text-sm text-cyan-300">${escapeHtml(r[titleField]||r.recordId)}</h3>
-      <span class="text-[10px] opacity-40">${(r.recordId||'').slice(0,6)}</span>
-    </div>${rows}</div>`;
-}
-function formatVal(v,f){
-  if(f.type==='file' && v) return `<a href="${v}" target="_blank" class="text-cyan-400 underline">📎 ${t('fileHint').split(' ')[0]||'file'}</a>`;
-  if(v===true||v==='TRUE') return '✅'; if(v===false||v==='FALSE') return '—';
-  return escapeHtml(String(v));
-}
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function bindCards(tabId){
-  document.querySelectorAll('#feed [data-id]').forEach(el=>{
-    el.onclick = ()=>{
-      const rec = S.records[tabId].find(r=>r.recordId===el.dataset.id);
-      openRecordSheet(tabId, rec);
-    };
-  });
-}
-
-/* ---------------- dynamic schema form (bottom-sheet) ---------------- */
-function inputHtml(f, val){
-  const v = val ?? '';
-  const base = `data-field="${f.field}" class="w-full glass rounded-2xl px-4 py-3 text-sm bg-transparent placeholder:opacity-50"`;
-  switch(f.type){
-    case 'select':
-      return `<select ${base}><option value="">—</option>${f.options.map(o=>
-        `<option ${o==v?'selected':''}>${o}</option>`).join('')}</select>`;
-    case 'boolean':
-      return `<label class="flex items-center justify-between glass rounded-2xl px-4 py-3 text-sm cursor-pointer">
-        <span>${fieldLabel(f)}</span><input type="checkbox" data-field="${f.field}" ${v==='TRUE'||v===true?'checked':''} class="w-5 h-5 accent-cyan-400"></label>`;
-    case 'date':
-      return `<input type="date" ${base} value="${String(v).slice(0,10)}">`;
-    case 'number':
-      return `<input type="number" step="any" inputmode="decimal" placeholder="${fieldLabel(f)}" ${base} value="${v}">`;
-    case 'textarea':
-      return `<textarea rows="3" placeholder="${fieldLabel(f)}" ${base}>${escapeHtml(v)}</textarea>`;
-    case 'file':
-      return `<div id="dz_${f.field}" class="glass rounded-2xl p-5 text-center cursor-pointer transition border-2 border-dashed" data-filefield="${f.field}">
-        <input type="file" class="hidden" id="fi_${f.field}">
-        <p class="text-xs opacity-60">${t('fileHint')}</p>
-        <div class="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden hidden"><div class="h-full bg-gradient-to-r from-cyan-400 to-lime-400 transition-all" style="width:0%"></div></div>
-        <p class="fileName text-[11px] text-cyan-400 mt-2 font-semibold">${v?'📎 '+escapeHtml(String(v).split('/').pop()):''}</p>
-        <input type="hidden" data-field="${f.field}" value="${v}"></div>`;
-    default:
-      return `<input type="text" placeholder="${fieldLabel(f)}" ${base} value="${escapeHtml(v)}">`;
-  }
-}
-
-function openRecordSheet(tabId, existing=null){
-  const fields = (S.schema[tabId]||[]).filter(f=>f.visible);
-  S.editingId = existing?.recordId || null;
-  const html = fields.map(f=>{
-    if(f.calc) return ''; // calculated server-side
-    const inner = inputHtml(f, existing ? existing[f.field] : '');
-    if(['boolean','file'].includes(f.type)) return inner;
-    return `<div><label class="block text-[11px] font-bold opacity-60 mb-1.5">${fieldLabel(f)}${f.required?' *':''}</label>${inner}</div>`;
-  }).join('') + `
-    <div class="fixed bottom-0 inset-x-0 z-50 max-w-2xl mx-auto p-4 glass !rounded-none !border-x-0 !border-b-0" style="background:rgba(15,23,42,.85)">
-      <button id="saveBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-bold shadow-glow active:scale-[.98] transition">
-        ${existing?t('editTitle').split(' ')[0]+' ➤':t('save')}</button></div>`;
-  openSheet(existing ? t('editTitle') : t('formTitle'), html);
-  bindFileUploads(tabId);
-  $('#saveBtn').onclick = ()=>saveRecord(tabId);
-}
-
-function collectForm(tabId){
-  const fields = S.schema[tabId]||[];
-  const data = {};
-  let valid = true;
-  document.querySelectorAll('#sheetBody [data-field]').forEach(el=>{
-    const f = fields.find(x=>x.field===el.dataset.field);
-    if(!f) return;
-    if(f.type==='boolean') data[f.field] = el.checked ? 'TRUE':'FALSE';
-    else data[f.field] = el.value;
-    if(f.required && !el.value && f.type!=='boolean' && f.type!=='file'){ valid=false; el.classList.add('!border-rose-400'); }
-  });
-  return valid ? data : null;
-}
-
-async function saveRecord(tabId){
-  const data = collectForm(tabId);
-  if(!data){ toast('⚠️','err'); return; }
-  const btn=$('#saveBtn'); btn.disabled=true; btn.textContent=t('saving');
-  const payload = { tabId, recordId:S.editingId, data };
-  if(!S.online){ await queueOp({type:'save', ...payload}); closeSheet(); loadRecords(tabId,true); return; }
-  try{
-    const r = await post('saveRecord', payload);
-    if(r.ok){ toast(t('saved')); closeSheet(); loadRecords(tabId,true); }
-    else toast(r.error||'⚠️','err');
-  }catch(e){ await queueOp({type:'save', ...payload}); closeSheet(); loadRecords(tabId,true); }
-}
-
-async function deleteRecord(tabId, recordId){
-  openModal(`<p class="font-bold mb-5">${t('confirmDel')}</p>
-    <div class="flex gap-3">
-      <button id="mYes" class="flex-1 py-3 rounded-2xl bg-rose-500/80 text-white font-bold">${t('yes')}</button>
-      <button id="mNo" class="flex-1 py-3 rounded-2xl glass font-bold">${t('no')}</button></div>`);
-  $('#mNo').onclick = closeModal;
-  $('#mYes').onclick = async ()=>{
-    closeModal();
-    if(!S.online){ await queueOp({type:'delete', tabId, recordId}); toast(t('deleted')); loadRecords(tabId,true); return; }
-    const r = await post('deleteRecord',{tabId, recordId});
-    toast(r.ok?t('deleted'):'⚠️', r.ok?'ok':'err');
-    loadRecords(tabId,true);
-  };
-}
-
-/* swipe-to-delete on cards */
-function bindSwipe(el, tabId, recordId){
-  let sx=0, dx=0;
-  el.addEventListener('touchstart',e=>{sx=e.touches[0].clientX; el.style.transition='none';},{passive:true});
-  el.addEventListener('touchmove',e=>{dx=e.touches[0].clientX-sx; el.style.transform=`translateX(${dx}px)`;},{passive:true});
-  el.addEventListener('touchend',()=>{
-    el.style.transition='transform .25s';
-    if(Math.abs(dx)>90){ el.style.transform=`translateX(${dx>0?120:-120}%)`; setTimeout(()=>deleteRecord(tabId,recordId),220); }
-    else el.style.transform='';
-    dx=0;
-  });
-}
-
-/* ---------------- file upload with live progress ---------------- */
-function bindFileUploads(tabId){
-  document.querySelectorAll('[data-filefield]').forEach(dz=>{
-    const field = dz.dataset.filefield, inp = dz.querySelector('input[type=file]');
-    const bar = dz.querySelector('.h-full'), barWrap = bar.parentElement, nameEl = dz.querySelector('.fileName');
-    const hidden = dz.querySelector('input[data-field]');
-    dz.onclick = ()=>inp.click();
-    dz.ondragover = e=>{ e.preventDefault(); dz.classList.add('drag'); };
-    dz.ondragleave = ()=>dz.classList.remove('drag');
-    dz.ondrop = e=>{ e.preventDefault(); dz.classList.remove('drag'); if(e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); };
-    inp.onchange = ()=>inp.files[0] && handle(inp.files[0]);
-    async function handle(file){
-      if(file.size > 10*1024*1024){ toast('Max 10MB','err'); return; }
-      nameEl.textContent = `⏳ ${file.name}`;
-      barWrap.classList.remove('hidden');
-      const fr = new FileReader();
-      fr.onprogress = e=>{ if(e.lengthComputable) bar.style.width = Math.round(e.loaded/e.total*60)+'%'; };
-      fr.onload = async ()=>{
-        bar.style.width='75%';
-        if(!S.online){ toast(t('queued'),'warn'); return; }
-        try{
-          const r = await post('upload',{tabId, filename:file.name, mimeType:file.type,
-            base64: fr.result.split(',')[1]});
-          if(r.ok){ bar.style.width='100%'; hidden.value=r.fileUrl;
-            nameEl.innerHTML=`📎 <a class="text-cyan-400 underline" target="_blank" href="${r.fileUrl}">${escapeHtml(r.filename)}</a>`; }
-          else toast('⚠️','err');
-        }catch(e){ toast(t('queued'),'warn'); }
-      };
-      fr.readAsDataURL(file);
-    }
-  });
-}
-
-/* ---------------- admin dashboard ---------------- */
-async function renderAdmin(){
-  $('#main').innerHTML = `<div id="adminView" data-open="1">
-    <div class="flex gap-2 mb-4">
-      <button data-av="presence" class="avBtn glass px-4 py-2 rounded-2xl text-xs font-bold">🟢 ${t('presence')}</button>
-      <button data-av="users" class="avBtn glass px-4 py-2 rounded-2xl text-xs font-bold">👥 ${t('users')}</button>
-      <button data-av="audit" class="avBtn glass px-4 py-2 rounded-2xl text-xs font-bold">📜 ${t('audit')}</button>
-      <button data-av="tab" class="avBtn glass px-4 py-2 rounded-2xl text-xs font-bold">➕ ${t('addTab')}</button>
-    </div><div id="avBody"></div></div>`;
-  document.querySelectorAll('.avBtn').forEach(b=>b.onclick=()=>avSwitch(b.dataset.av));
-  avSwitch('presence');
-}
-async function avSwitch(v){
-  document.querySelectorAll('.avBtn').forEach(b=>{
-    const on=b.dataset.av===v;
-    b.className=`avBtn px-4 py-2 rounded-2xl text-xs font-bold ${on?'bg-gradient-to-r from-cyan-400/30 to-blue-500/30 border border-cyan-400/40 text-cyan-300':'glass'}`;});
-  const body=$('#avBody');
-  if(v==='presence'){
-    body.innerHTML='<div class="skel h-40 rounded-3xl"></div>';
-    const r = await api('presence');
-    body.innerHTML = r.ok ? `<div class="space-y-2">${r.users.map(u=>{
-      const status = u.online
-        ? `<span class="text-emerald-400 font-bold text-xs">🟢 ${t('onlineSince')} ${new Date(u.onlineSince).toTimeString().slice(0,5)}</span>`
-        : `<span class="text-slate-400 text-xs">⚪ ${t('lastSeen')} ${u.lastSeenText}</span>`;
-      return `<div class="glass rounded-2xl px-4 py-3 flex items-center justify-between bubble">
-        <span class="font-bold text-sm">${escapeHtml(u.username)}</span>${status}</div>`;}).join('')}</div>`
-      : '⚠️';
-  }
-  if(v==='users'){
-    body.innerHTML='<div class="skel h-40 rounded-3xl"></div>';
-    const r = await api('admUsers');
-    body.innerHTML = `<button id="addUserBtn" class="w-full mb-3 py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-white text-sm font-bold">＋ ${t('addUser')}</button>
-      <div class="space-y-2">${r.users.map(u=>`
-      <div class="glass rounded-2xl px-4 py-3 bubble cursor-pointer userRow" data-u='${JSON.stringify(u).replace(/'/g,"&#39;")}'>
-        <div class="flex justify-between"><span class="font-bold text-sm">${escapeHtml(u.displayName)} ${u.isAdmin?'🛡️':''}</span>
-        <span class="text-[10px] opacity-50">@${escapeHtml(u.username)}</span></div>
-        <p class="text-[11px] opacity-60 mt-1">${u.allowedTabs.join(', ')||'—'}</p></div>`).join('')}</div>`;
-    $('#addUserBtn').onclick = ()=>userForm(null);
-    document.querySelectorAll('.userRow').forEach(el=>el.onclick=()=>userForm(JSON.parse(el.dataset.u.replace(/&#39;/g,"'"))));
-  }
-  if(v==='audit'){
-    body.innerHTML = `<div class="flex gap-2 mb-3">
-      <select id="afTab" class="glass rounded-xl px-3 py-2 text-xs bg-transparent"><option value="">${t('filterTab')}</option>
-        ${S.tabs.map(x=>`<option value="${x.tabId}">${x.label_en}</option>`).join('')}</select>
-      <input id="afUser" placeholder="${t('filterUser')}" class="glass rounded-xl px-3 py-2 text-xs bg-transparent flex-1"></div>
-      <div id="auditList" class="space-y-2"></div>`;
-    const load = async ()=>{
-      const r = await api('audit',{tabId:$('#afTab').value,userId:'',action:''});
-      let logs = r.logs||[];
-      const qu=$('#afUser').value.toLowerCase();
-      if(qu) logs=logs.filter(l=>(l.username||'').toLowerCase().includes(qu));
-      $('#auditList').innerHTML = logs.slice(0,100).map(l=>`
-        <div class="glass rounded-2xl px-4 py-2.5 text-xs bubble">
-          <div class="flex justify-between"><span class="font-bold">${l.action} · ${l.tabId||''}</span>
-          <span class="opacity-40">${String(l.ts).replace('T',' ').slice(0,16)}</span></div>
-          <p class="opacity-60 mt-0.5">@${escapeHtml(l.username)} ${l.recordId?'· '+(l.recordId+'').slice(0,6):''}</p></div>`).join('')||'<p class="text-center opacity-40 text-xs">—</p>';
-    };
-    load(); $('#afTab').onchange=load; $('#afUser').oninput=load;
-  }
-  if(v==='tab'){
-    body.innerHTML = `<div class="glass rounded-3xl p-5 space-y-3">
-      <input id="ntName" placeholder="${t('tabName')}" class="w-full glass rounded-2xl px-4 py-3 text-sm bg-transparent">
-      <input id="ntNameAr" placeholder="${t('tabNameAr')}" class="w-full glass rounded-2xl px-4 py-3 text-sm bg-transparent">
-      <input id="ntFields" placeholder="e.g. name:text:Name|salary:number:Salary|dept:select:Dept(HR|IT)" class="w-full glass rounded-2xl px-4 py-3 text-xs bg-transparent">
-      <button id="ntBtn" class="w-full py-3 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-white text-sm font-bold">${t('create')}</button></div>`;
-    $('#ntBtn').onclick = async ()=>{
-      const fields = $('#ntFields').value.split('|').map(s=>{const [field,type,label]=s.split(':');
-        return field?{field:field.trim(),type:(type||'text').trim(),label_en:(label||field).trim(),
-          label_ar:(label||field).trim(), options:(type||'').trim()==='select'? (label.match(/\(([^)]+)\)/)?.[1]||'').split(',').map(x=>x.trim()):[] }:null;}).filter(Boolean);
-      const r = await api('admAddTab',{},'POST',{data:{sheetName:$('#ntName').value.trim().replace(/\W+/g,'_').toUpperCase(),
-        label_en:$('#ntName').value, label_ar:$('#ntNameAr').value||$('#ntName').value, fields}});
-      toast(r.ok?'✅':'⚠️', r.ok?'ok':'err');
-      if(r.ok){ const b=await api('bootstrap'); S.tabs=b.tabs; S.schema=b.schema; renderNav(); }
-    };
-  }
-}
-function userForm(u){
-  openSheet(u?u.displayName:t('addUser'), `
-    <input id="ufName" value="${u?escapeHtml(u.username):''}" placeholder="${t('username')}" class="w-full glass rounded-2xl px-4 py-3 text-sm bg-transparent">
-    <input id="ufDisp" value="${u?escapeHtml(u.displayName):''}" placeholder="Display name" class="w-full glass rounded-2xl px-4 py-3 text-sm bg-transparent">
-    <input id="ufPass" type="password" placeholder="${t('pass')}" class="w-full glass rounded-2xl px-4 py-3 text-sm bg-transparent">
-    <label class="flex items-center justify-between glass rounded-2xl px-4 py-3 text-sm"><span>${t('isAdmin')}</span>
-      <input type="checkbox" id="ufAdmin" ${u?.isAdmin?'checked':''} class="w-5 h-5 accent-cyan-400"></label>
-    <div><p class="text-[11px] font-bold opacity-60 mb-2">${t('allowedTabs')}</p>
-      <div class="flex flex-wrap gap-2">${S.tabs.map(x=>`<label class="glass rounded-xl px-3 py-1.5 text-xs flex items-center gap-1.5">
-        <input type="checkbox" class="ufTab accent-cyan-400" value="${x.tabId}" ${u?.allowedTabs.includes(x.tabId)?'checked':''}>${x.label_en}</label>`).join('')}</div></div>
-    <button id="ufSave" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-white font-bold">${t('create')}</button>`);
-  $('#ufSave').onclick = async ()=>{
-    const r = await api('admSaveUser',{},'POST',{data:{ userId:u?.userId, username:$('#ufName').value.trim(),
-      displayName:$('#ufDisp').value, password:$('#ufPass').value, isAdmin:$('#ufAdmin').checked,
-      allowedTabs:[...document.querySelectorAll('.ufTab:checked')].map(c=>c.value) }});
-    toast(r.ok?'✅':'⚠️', r.ok?'ok':'err');
-    if(r.ok){ closeSheet(); renderAdmin(); }
-  };
-}
-
-/* ---------------- presence heartbeat ---------------- */
-let hbTimer=null;
-function startHeartbeat(){
-  clearInterval(hbTimer);
-  const beat = ()=>{ if(S.online && S.token) post('heartbeat',{}).catch(()=>{}); };
-  beat(); hbTimer = setInterval(beat, 30000);
-}
-
-/* ---------------- global controls ---------------- */
-$('#themeBtn').onclick = ()=>{
-  const dark = document.documentElement.classList.toggle('dark');
-  localStorage.setItem('theme', dark?'dark':'light');
-  $('#themeIcon').textContent = dark?'🌙':'☀️';
 };
-if(localStorage.getItem('theme')==='light'){ document.documentElement.classList.remove('dark'); $('#themeIcon').textContent='☀️'; }
-else document.documentElement.classList.add('dark');
+const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', date: 'Date', datetime: 'Date & time', select: 'Dropdown', multiselect: 'Multi-select', checkbox: 'Checkbox', phone: 'Phone', email: 'Email', file: 'File upload', calc: 'Calculated' },
+  ar: { text: 'نص', longtext: 'نص طويل', number: 'رقم', date: 'تاريخ', datetime: 'تاريخ ووقت', select: 'قائمة', multiselect: 'اختيار متعدد', checkbox: 'مربع اختيار', phone: 'هاتف', email: 'بريد', file: 'رفع ملف', calc: 'محسوب' } };
+const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create'];
 
-function applyLang(){
-  document.documentElement.lang = lang;
-  document.documentElement.dir = lang==='ar' ? 'rtl':'ltr';
-  localStorage.setItem('lang', lang);
-  $('#langBtn').textContent = lang==='ar' ? 'EN':'ع';
-  if(S.token) renderApp(); else renderLogin();
-}
-$('#langBtn').onclick = ()=>{ lang = lang==='ar'?'en':'ar'; applyLang(); };
+const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'tab', tab: null, admin: 'overview' },
+  online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null };
+const t = (k, ...a) => { const v = (I18N[S.lang] || I18N.en)[k] ?? I18N.en[k] ?? k; return typeof v === 'function' ? v(...a) : v; };
+const fl = f => (S.lang === 'ar' && f.ar) ? f.ar : f.label;
+const tl = tb => (S.lang === 'ar' && tb.ar) ? tb.ar : tb.label;
+const typeName = k => (T_TYPES[S.lang] || T_TYPES.en)[k] || k;
 
-$('#logoutBtn').onclick = ()=>{
-  clearInterval(hbTimer); S.token=null; S.user=null; S.tabs=[]; S.activeTab=null;
-  localStorage.removeItem('session'); toast(t('logout')); renderLogin();
+/* ----------------------------- icons ----------------------------- */
+const ICONS = {
+  plus: '<path d="M12 5v14M5 12h14"/>', search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>', mic: '<rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>', sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>',
+  shield: '<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z"/>', bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/>', x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6"/>', trash: '<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>', edit: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
+  chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', check: '<path d="M20 6 9 17l-5-5"/>', upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
+  spin: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
 };
-$('#adminBtn').onclick = renderAdmin;
-$('#fab').onclick = ()=>{ if(S.activeTab) openRecordSheet(S.activeTab); };
-$('#syncBadge').onclick = ()=>{ flushQueue(); };
+const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 
-/* ---------------- boot ---------------- */
-(async function init(){
-  await DB.open();
-  await refreshSyncBadge();
-  if(S.token && S.user) renderApp();
-  else renderLogin();
+/* ----------------------------- IndexedDB ----------------------------- */
+const DB = (() => {
+  let db;
+  const open = () => new Promise((res, rej) => {
+    const r = indexedDB.open('hr_erp', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('records', { keyPath: 'k' }); d.createObjectStore('meta', { keyPath: 'k' }); d.createObjectStore('queue', { keyPath: 'qid', autoIncrement: true }); d.createObjectStore('files', { keyPath: 'lid' }); };
+    r.onsuccess = () => { db = r.result; res(); }; r.onerror = () => rej(r.error);
+  });
+  const tx = (s, m, fn) => new Promise((res, rej) => { const x = db.transaction(s, m); const rq = fn(x.objectStore(s)); x.oncomplete = () => res(rq && rq.result); x.onerror = () => rej(x.error); x.onabort = () => rej(x.error); });
+  return { open, get: (s, k) => tx(s, 'readonly', st => st.get(k)), put: (s, v) => tx(s, 'readwrite', st => st.put(v)), del: (s, k) => tx(s, 'readwrite', st => st.delete(k)), all: s => tx(s, 'readonly', st => st.getAll()), clear: s => tx(s, 'readwrite', st => st.clear()) };
 })();
+const meta = { get: async k => (await DB.get('meta', k))?.v, set: (k, v) => DB.put('meta', { k, v }) };
+
+/* ----------------------------- schema logic (mirrors Code.gs) ----------------------------- */
+function cond(expr, data) {
+  if (!expr) return true;
+  const m = String(expr).match(/^(.+?)(!=|=)(.*)$/); if (!m) return true;
+  const want = m[3].split('|').map(s => s.trim()); const v = data[m[1].trim()];
+  const hit = (Array.isArray(v) ? v.map(String) : [String(v ?? '')]).some(x => want.includes(x));
+  return m[2] === '!=' ? !hit : hit;
+}
+function calcVal(expr, data) {
+  try {
+    const s = String(expr).replace(/\{([^}]+)\}|[A-Za-z_]\w*/g, (m0, k) => String(Number(data[(k || m0).trim()]) || 0));
+    if (!/^[0-9+\-*/().\s%]*$/.test(s)) return '';
+    const r = Function('"use strict";return (' + s + ')')(); return isFinite(r) ? Math.round(r * 100) / 100 : '';
+  } catch (e) { return ''; }
+}
+const schemaOf = tab => S.tabs.find(x => x.name === tab);
+const vf = sc => sc.fields.filter(f => !f.hidden);
+const canR = (sc, r) => (sc.rights || '').includes(r);
+const blank = f => f.type === 'checkbox' ? false : (f.type === 'multiselect' || f.type === 'file') ? [] : '';
+const blankDraft = sc => Object.fromEntries(sc.fields.map(f => [f.key, blank(f)]));
+function recalc(sc, d) { sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d); }); }
+const isEmpty = v => v === '' || v == null || (Array.isArray(v) && !v.length);
+function fieldError(sc, f, d) {
+  if (f.showIf && !cond(f.showIf, d)) return '';
+  const v = d[f.key], req = f.req || (f.reqIf && cond(f.reqIf, d));
+  if (req && f.type !== 'checkbox' && f.type !== 'calc' && isEmpty(v)) return t('required');
+  if (isEmpty(v)) return '';
+  if (f.type === 'number') { if (isNaN(Number(v))) return '#'; if (f.min !== undefined && v < f.min) return '≥ ' + f.min; if (f.max !== undefined && v > f.max) return '≤ ' + f.max; }
+  if (f.type === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) return '@';
+  return '';
+}
+function validateDraft(sc, d) { const e = {}; sc.fields.forEach(f => { if (!f.hidden || f.req) { const m = fieldError(sc, f, d); if (m) e[f.key] = m; } }); return e; }
+function displayVal(f, v) {
+  if (isEmpty(v)) return '';
+  switch (f.type) {
+    case 'file': return '📎 ' + v.length;
+    case 'checkbox': return v ? '✓' : '—';
+    case 'multiselect': return v.join(', ');
+    case 'number': case 'calc': return Number(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined);
+    case 'date': try { return new Date(v + 'T00:00').toLocaleDateString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium' }); } catch (e) { return v; }
+    case 'datetime': try { return new Date(v).toLocaleString(S.lang === 'ar' ? 'ar-EG' : undefined, { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return v; }
+    default: return String(v);
+  }
+}
+
+/* ----------------------------- relative time ----------------------------- */
+function relTime(ms) {
+  if (!ms) return t('never');
+  const m = Math.floor((Date.now() - ms) / 60000);
+  if (m < 1) return t('justNow'); if (m < 60) return t('minAgo', m); if (m < 1440) return t('hrAgo', Math.floor(m / 60)); return t('dayAgo', Math.floor(m / 1440));
+}
+
+/* ----------------------------- API ----------------------------- */
+async function api(action, payload = {}, { auth = true } = {}) {
+  const body = JSON.stringify({ action, token: auth ? S.token : undefined, ...payload });
+  let r;
+  try { r = await fetch(CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, redirect: 'follow' }); }
+  catch (e) { setOnline(false); throw Object.assign(new Error('network'), { code: 'network' }); }
+  let j; try { j = await r.json(); } catch (e) { setOnline(false); throw Object.assign(new Error('bad_response'), { code: 'network' }); }
+  setOnline(true);
+  if (!j.ok) { const err = new Error(j.message || j.error); err.code = j.error; err.data = j; if (j.error === 'auth' && auth) handleAuthExpired(); throw err; }
+  return j;
+}
+function uploadFile(tab, field, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const rd = new FileReader();
+    rd.onerror = () => reject(new Error('read'));
+    rd.onload = () => {
+      const b64 = String(rd.result).split(',')[1] || '';
+      const x = new XMLHttpRequest(); x.open('POST', CONFIG.API_URL); x.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+      x.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      x.onerror = () => reject(Object.assign(new Error('network'), { code: 'network' }));
+      x.onload = () => { try { const j = JSON.parse(x.responseText); if (j.ok) { setOnline(true); resolve(j.file); } else { if (j.error === 'auth') handleAuthExpired(); reject(Object.assign(new Error(j.message || j.error), { code: j.error })); } } catch (e) { reject(Object.assign(new Error('bad'), { code: 'network' })); } };
+      x.send(JSON.stringify({ action: 'upload', token: S.token, tab, field, name: file.name, mime: file.type, data: b64 }));
+    };
+    rd.readAsDataURL(file);
+  });
+}
+
+/* ----------------------------- connectivity + status pill ----------------------------- */
+function setOnline(v) { if (S.online === v) return; S.online = v; renderStatus(); if (v) flush(); }
+function statusInfo() {
+  if (!navigator.onLine || !S.online) return S.pending ? { c: 'err', txt: t('offlineN', S.pending) } : { c: 'warn', txt: t('offlineN', 0) };
+  if (S.syncing) return { c: 'busy', txt: t('syncing') };
+  if (S.pending) return { c: 'warn', txt: t('pendingN', S.pending) };
+  return { c: 'ok', txt: t('synced') };
+}
+function renderStatus() { const el = $('#statusPill'); if (!el) return; const s = statusInfo(); el.className = 'pill ' + s.c; el.innerHTML = `<span class="d"></span><span class="hidden sm:inline">${esc(s.txt)}</span>${S.pending && s.c !== 'busy' ? `<b class="sm:hidden">${S.pending}</b>` : ''}`; el.title = s.txt; }
+async function refreshPending() { S.pending = (await DB.all('queue')).length; renderStatus(); }
+
+/* ----------------------------- local data ----------------------------- */
+const dataOf = tab => S.data[tab] || (S.data[tab] = new Map());
+const mkServerRec = r => { const rec = { ...r }; rec._srv = clone(Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith('_')))); delete rec._pending; return rec; };
+async function putLocal(tab, rec) { dataOf(tab).set(rec._id, rec); await DB.put('records', { k: tab + '|' + rec._id, tab, rec }); }
+async function delLocal(tab, id) { dataOf(tab).delete(id); await DB.del('records', tab + '|' + id); }
+async function loadLocal() {
+  S.data = {};
+  (await DB.all('records')).forEach(r => dataOf(r.tab).set(r.rec._id, r.rec));
+  S.lastSync = (await meta.get('lastSync')) || {};
+}
+async function pullTab(tab) {
+  const since = S.lastSync[tab] || 0;
+  const r = await api('list', { tab, since });
+  const m = dataOf(tab);
+  if (r.full) { const ids = new Set(r.records.map(x => x._id)); for (const [id, rec] of [...m]) if (!ids.has(id) && !rec._pending) await delLocal(tab, id); }
+  for (const rec of r.records) { const cur = m.get(rec._id); if (cur && cur._pending) continue; await putLocal(tab, mkServerRec(rec)); }
+  for (const id of r.deleted) { const cur = m.get(id); if (cur && !cur._pending) await delLocal(tab, id); }
+  S.lastSync[tab] = r.serverTime - 2000; await meta.set('lastSync', S.lastSync);
+}
+async function pullAll() { await Promise.all(S.tabs.map(tb => pullTab(tb.name).catch(e => { if (e.code !== 'network') console.warn(e); }))); }
+
+/* ----------------------------- queue / sync engine ----------------------------- */
+async function enqueue(op) {
+  const q = await DB.all('queue');
+  const same = q.find(o => o.tab === op.tab && o.id === op.id);
+  if (op.type === 'update' && same && (same.type === 'create' || same.type === 'update')) { same.data = { ...same.data, ...op.data }; await DB.put('queue', same); }
+  else if (op.type === 'delete' && same && same.type === 'create') { for (const o of q.filter(o => o.tab === op.tab && o.id === op.id)) await DB.del('queue', o.qid); }
+  else if (op.type === 'delete' && same) { for (const o of q.filter(o => o.tab === op.tab && o.id === op.id)) await DB.del('queue', o.qid); await DB.put('queue', op); }
+  else await DB.put('queue', op);
+  await refreshPending();
+}
+async function saveRecord(tab, id, data, isNew) {
+  const sc = schemaOf(tab), m = dataOf(tab), ex = m.get(id);
+  const clean = {}; sc.fields.forEach(f => { if (f.key in data && !f.readonly) clean[f.key] = data[f.key]; });
+  let rec, op;
+  if (isNew) { rec = { _id: id, ...clean, _updated: Date.now(), _by: S.user.username, _pending: true }; op = { opId: uid(), tab, type: 'create', id, data: clean, ts: Date.now() }; }
+  else {
+    const changed = {}, base = {};
+    sc.fields.forEach(f => { if (f.key in clean && JSON.stringify(clean[f.key]) !== JSON.stringify(ex[f.key] ?? blank(f))) { changed[f.key] = clean[f.key]; base[f.key] = ex._srv ? (ex._srv[f.key] ?? blank(f)) : (ex[f.key] ?? blank(f)); } });
+    if (!Object.keys(changed).length) return;
+    rec = { ...ex, ...clean, _pending: true }; op = { opId: uid(), tab, type: 'update', id, data: changed, base, ts: Date.now() };
+  }
+  recalc(sc, rec);
+  await putLocal(tab, rec); await enqueue(op); renderList(); flush();
+}
+async function deleteRecord(tab, id) { await delLocal(tab, id); await enqueue({ opId: uid(), tab, type: 'delete', id, ts: Date.now() }); renderList(); flush(); }
+
+let flushing = false;
+async function flush() {
+  if (flushing || !S.token || !navigator.onLine) return;
+  const ops = (await DB.all('queue')).sort((a, b) => a.qid - b.qid);
+  S.pending = ops.length; if (!ops.length) { renderStatus(); return; }
+  flushing = true; S.syncing = true; renderStatus();
+  try {
+    for (const op of ops) await uploadPendingFiles(op);
+    const res = await api('sync', { ops: ops.map(({ qid, ...o }) => o) });
+    for (let i = 0; i < ops.length; i++) {
+      const op = ops[i], r = res.results[i]; if (!r) continue;
+      await DB.del('queue', op.qid);
+      if (r.status === 'ok' || r.status === 'conflict') {
+        if (op.type === 'delete') { /* already removed locally */ }
+        else if (r.record) { const cur = dataOf(op.tab).get(op.id); const later = (await DB.all('queue')).some(o => o.tab === op.tab && o.id === op.id); if (!later || !cur) await putLocal(op.tab, mkServerRec(r.record)); else { cur._srv = mkServerRec(r.record)._srv; await putLocal(op.tab, cur); } }
+        if (r.status === 'conflict') showConflict(op, r);
+      } else {
+        if (r.error === 'forbidden') toast(r.message || t('saveFail'), 'err');
+        else toast(`${t('saveFail')}: ${r.message}`, 'err', { ms: 6000 });
+        await pullTab(op.tab).catch(() => {}); await dropLocalPending(op.tab, op.id);
+      }
+    }
+  } catch (e) { if (e.code !== 'network' && e.code !== 'auth') toast(e.message, 'err'); }
+  finally { flushing = false; S.syncing = false; await refreshPending(); if (S.pending && navigator.onLine && S.online && S.token) setTimeout(flush, 1500); renderList(); }
+}
+async function dropLocalPending(tab, id) { const r = dataOf(tab).get(id); if (r && r._pending && !(await DB.all('queue')).some(o => o.tab === tab && o.id === id)) { if (r._srv) { await putLocal(tab, mkServerRec({ _id: id, ...r._srv, _updated: r._updated })); } else await delLocal(tab, id); } }
+async function uploadPendingFiles(op) {
+  if (op.type === 'delete' || !op.data) return;
+  let dirty = false;
+  for (const [key, val] of Object.entries(op.data)) {
+    if (!Array.isArray(val)) continue;
+    for (let i = 0; i < val.length; i++) {
+      const it = val[i]; if (!it || !it.pending) continue;
+      const rec = await DB.get('files', it.lid); if (!rec) { val.splice(i--, 1); dirty = true; continue; }
+      const f = await uploadFile(op.tab, key, new File([rec.blob], rec.name, { type: rec.type }));
+      val[i] = f; await DB.del('files', it.lid); dirty = true;
+      const loc = dataOf(op.tab).get(op.id); if (loc && Array.isArray(loc[key])) { loc[key] = loc[key].map(x => x.lid === it.lid ? f : x); await putLocal(op.tab, loc); }
+    }
+  }
+  if (dirty && op.qid) await DB.put('queue', op);
+}
+function showConflict(op, r) {
+  const sc = schemaOf(op.tab); if (!sc) return;
+  const rows = r.conflicts.map(c => { const f = sc.fields.find(x => x.key === c.field); return `<div class="card" style="margin-bottom:10px"><b>${esc(fl(f))}</b><div class="muted" style="font-size:13px;margin-top:6px">${esc(t('keepMine'))}: <b style="color:var(--text)">${esc(displayVal(f, c.mine) || '—')}</b></div><div class="muted" style="font-size:13px">${esc(t('keepTheirs'))}: <b style="color:var(--text)">${esc(displayVal(f, c.theirs) || '—')}</b></div></div>`; }).join('');
+  const o = openSheet(`<div class="hd"><h3>⚠️ ${esc(t('conflictTitle'))}</h3></div><p class="muted" style="margin-top:0">${esc(t('conflictBody'))}</p>${rows}<div style="display:flex;gap:10px"><button class="btn" data-x="theirs" style="flex:1">${esc(t('keepTheirs'))}</button><button class="btn primary" data-x="mine" style="flex:1">${esc(t('keepMine'))}</button></div>`);
+  o.addEventListener('click', async e => {
+    const b = e.target.closest('[data-x]'); if (!b) return;
+    if (b.dataset.x === 'mine') { const data = {}, base = {}; r.conflicts.forEach(c => { data[c.field] = c.mine; base[c.field] = c.theirs; }); const rec = dataOf(op.tab).get(op.id); if (rec) { Object.assign(rec, data); rec._pending = true; await putLocal(op.tab, rec); } await enqueue({ opId: uid(), tab: op.tab, type: 'update', id: op.id, data, base, force: true, ts: Date.now() }); flush(); }
+    closeSheet(true); renderList();
+  });
+}
+
+/* ----------------------------- UI primitives ----------------------------- */
+function toast(msg, type = 'ok', opts = {}) {
+  const box = $('#toasts'); const el = document.createElement('div'); el.className = 'toast ' + type;
+  el.innerHTML = `<span class="dot"></span><span>${esc(msg)}</span>${opts.action ? `<button class="tbtn">${esc(opts.action)}</button>` : ''}`;
+  box.appendChild(el); requestAnimationFrame(() => el.classList.add('show'));
+  const close = () => { el.classList.remove('show'); setTimeout(() => el.remove(), 250); };
+  if (opts.action) $('.tbtn', el).onclick = () => { opts.onAction && opts.onAction(); close(); };
+  setTimeout(close, opts.ms || 3200); return close;
+}
+function openSheet(html, { wide = false, onClose } = {}) {
+  closeSheet(true);
+  const o = document.createElement('div'); o.id = 'overlay'; o.className = 'overlay';
+  o.innerHTML = `<div class="sheet glass ${wide ? 'wide' : ''}" role="dialog"><div class="grab"></div><div class="sheet-body">${html}</div></div>`;
+  document.body.appendChild(o); o._onClose = onClose; requestAnimationFrame(() => o.classList.add('open'));
+  o.addEventListener('mousedown', e => { if (e.target === o) closeSheet(); });
+  const sh = $('.sheet', o); let y0 = null, dy = 0; const g = $('.grab', o);
+  g.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; sh.style.transition = 'none'; }, { passive: true });
+  g.addEventListener('touchmove', e => { if (y0 == null) return; dy = Math.max(0, e.touches[0].clientY - y0); sh.style.transform = `translateY(${dy}px)`; }, { passive: true });
+  g.addEventListener('touchend', () => { sh.style.transition = ''; sh.style.transform = ''; if (dy > 110) closeSheet(); y0 = null; dy = 0; });
+  return o;
+}
+function closeSheet(silent) { const o = $('#overlay'); if (!o) return; o.classList.remove('open'); o.id = ''; const cb = o._onClose; setTimeout(() => o.remove(), 240); if (!silent && cb) cb(); }
+function confirmDlg(msg, danger = true) {
+  return new Promise(res => {
+    const o = document.createElement('div'); o.id = 'dlg'; o.className = 'overlay';
+    o.style.alignItems = 'center'; o.innerHTML = `<div class="sheet glass" style="max-width:360px;border-radius:22px;transform:scale(.94)"><div class="sheet-body" style="padding:22px"><p style="margin:0 0 18px;font-weight:600">${esc(msg)}</p><div style="display:flex;gap:10px"><button class="btn" style="flex:1" data-r="0">${esc(t('cancel'))}</button><button class="btn ${danger ? 'danger' : 'primary'}" style="flex:1" data-r="1">${esc(t('del'))}</button></div></div></div>`;
+    document.body.appendChild(o); requestAnimationFrame(() => { o.classList.add('open'); $('.sheet', o).style.transform = 'none'; });
+    o.addEventListener('click', e => { const b = e.target.closest('[data-r]'); if (b || e.target === o) { o.classList.remove('open'); setTimeout(() => o.remove(), 200); res(b?.dataset.r === '1'); } });
+  });
+}
+function micButton(target) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return '';
+  return `<button type="button" class="btn icon ghost" data-mic="${esc(target)}" title="${esc(t('mic'))}">${ic('mic')}</button>`;
+}
+function startVoice(btn, input) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR || !input) return;
+  const rec = new SR(); rec.lang = S.lang === 'ar' ? 'ar-EG' : 'en-US'; rec.interimResults = false;
+  btn.style.color = 'var(--err)';
+  rec.onresult = e => { const txt = e.results[0][0].transcript; input.value = (input.value ? input.value + ' ' : '') + txt; input.dispatchEvent(new Event('input', { bubbles: true })); };
+  rec.onend = () => { btn.style.color = ''; }; rec.onerror = () => { btn.style.color = ''; }; rec.start();
+}
+
+/* ----------------------------- theme / language ----------------------------- */
+function applyTheme() { document.documentElement.dataset.theme = S.theme; document.querySelector('meta[name=theme-color]').content = S.theme === 'dark' ? '#0f172a' : '#f1f5f9'; }
+function applyLang() { document.documentElement.lang = S.lang; document.documentElement.dir = S.lang === 'ar' ? 'rtl' : 'ltr'; }
+function toggleTheme() { S.theme = S.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem('hr_theme', S.theme); applyTheme(); renderApp(); }
+function toggleLang() { S.lang = S.lang === 'ar' ? 'en' : 'ar'; localStorage.setItem('hr_lang', S.lang); applyLang(); closeSheet(true); S.user ? renderApp() : renderLogin(); }
+
+/* ----------------------------- session ----------------------------- */
+function handleAuthExpired() {
+  if (!S.token) return; S.token = null; localStorage.removeItem('hr_token'); stopTimers(); closeSheet(true);
+  toast(t('sessionExpired'), 'warn', { ms: 5000 }); renderLogin();
+}
+async function logout() {
+  const pend = await DB.all('queue'); if (pend.length && navigator.onLine) await flush();
+  try { await api('logout'); } catch (e) {}
+  S.token = null; localStorage.removeItem('hr_token'); stopTimers(); renderLogin();
+}
+let hbTimer, syncTimer;
+function startTimers() {
+  stopTimers();
+  hbTimer = setInterval(async () => {
+    if (!S.token || !navigator.onLine) return;
+    try {
+      const r = await api('ping');
+      if (S.user && r.pv && S.user.pv && r.pv !== S.user.pv) { toast(t('permsChanged'), 'warn'); await refresh(); renderApp(); }
+      if (S.user?.role === 'admin' && typeof r.alerts === 'number') { if (r.alerts > S.alerts) toast('🚨 ' + t('openAlerts') + ': ' + r.alerts, 'err', { ms: 6000 }); S.alerts = r.alerts; renderBell(); }
+    } catch (e) {}
+  }, CONFIG.HEARTBEAT_MS);
+  syncTimer = setInterval(() => { if (S.token) { flush(); } }, CONFIG.SYNC_MS);
+}
+function stopTimers() { clearInterval(hbTimer); clearInterval(syncTimer); clearInterval(S.adminTimer); }
+
+async function refresh() {
+  const b = await api('bootstrap');
+  S.user = b.user; S.tabs = b.tabs; await meta.set('user', S.user); await meta.set('schema', S.tabs);
+  if (!S.tabs.find(x => x.name === S.view.tab)) S.view.tab = S.tabs[0]?.name || null;
+  await pullAll();
+}
+
+/* ----------------------------- login ----------------------------- */
+function renderLogin(msg) {
+  closeSheet(true);
+  $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
+      <div style="display:flex;gap:6px"><button type="button" class="btn icon ghost" data-act="theme">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button><button type="button" class="btn icon ghost" data-act="lang">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button></div></div>
+    <h1 style="margin:0 0 4px;font-size:26px;font-weight:700">${esc(t('appName'))}</h1><p class="muted" style="margin:0 0 22px">${esc(t('tagline'))}</p>
+    <div class="fld"><label class="lab">${esc(t('username'))}</label><input class="inp" id="lu" name="username" autocomplete="username" autocapitalize="none" required></div>
+    <div class="fld"><label class="lab">${esc(t('password'))}</label><input class="inp" id="lp" name="password" type="password" autocomplete="current-password" required></div>
+    <div id="lmsg" style="min-height:22px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--err)">${esc(msg || '')}</div>
+    <button class="btn primary" id="lbtn" style="width:100%;padding:13px">${esc(t('login'))}</button></form></div>`;
+  const last = localStorage.getItem('hr_lastuser'); if (last) $('#lu').value = last;
+  $('#loginForm').addEventListener('submit', onLogin);
+}
+let lockTimer;
+async function onLogin(e) {
+  e.preventDefault(); const u = $('#lu').value.trim(), p = $('#lp').value, btn = $('#lbtn'), msg = $('#lmsg');
+  btn.disabled = true; btn.innerHTML = ic('spin', 'spin'); msg.textContent = '';
+  try {
+    const r = await api('login', { username: u, password: p, device: navigator.userAgent.slice(0, 120) }, { auth: false });
+    if (localStorage.getItem('hr_lastuser') && localStorage.getItem('hr_lastuser') !== r.user.username) { await Promise.all(['records', 'queue', 'files', 'meta'].map(s => DB.clear(s))); S.data = {}; S.lastSync = {}; }
+    S.token = r.token; S.user = r.user; localStorage.setItem('hr_token', r.token); localStorage.setItem('hr_lastuser', r.user.username);
+    await refresh(); await refreshPending(); startTimers(); renderApp(); flush();
+  } catch (err) {
+    btn.disabled = false; btn.textContent = t('login');
+    if (err.code === 'locked') {
+      let s = err.data.retryAfter || 300; clearInterval(lockTimer); btn.disabled = true;
+      const tick = () => { if (s <= 0) { clearInterval(lockTimer); msg.textContent = ''; btn.disabled = false; return; } msg.textContent = '🔒 ' + t('lockedFor', `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`); s--; };
+      tick(); lockTimer = setInterval(tick, 1000);
+    } else if (err.code === 'invalid') { msg.textContent = t('invalid') + (err.data.attemptsLeft != null ? ' — ' + t('attemptsLeft', err.data.attemptsLeft) : ''); $('#loginForm .box, .box').animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 200); }
+    else if (err.code === 'disabled') msg.textContent = t('disabled');
+    else msg.textContent = err.code === 'network' ? t('networkErr') : err.message;
+  }
+}
+
+/* ----------------------------- shell ----------------------------- */
+function navItems() {
+  const items = S.tabs.map(tb => ({ id: 'tab:' + tb.name, em: tb.icon || '📄', label: tl(tb), on: S.view.kind === 'tab' && S.view.tab === tb.name }));
+  if (S.user.role === 'admin') items.push({ id: 'admin', em: '🛡️', label: t('admin'), on: S.view.kind === 'admin' });
+  return items;
+}
+function renderApp() {
+  if (!S.user || !S.token) { renderLogin(); return; }
+  const items = navItems(), isAdmin = S.user.role === 'admin';
+  $('#app').innerHTML = `<div class="shell">
+    <aside class="side glass hidden lg:flex"><div style="display:flex;align-items:center;gap:10px;padding:6px 8px 16px"><div class="logo" style="width:40px;height:40px;font-size:20px;border-radius:14px">🧭</div><b style="font-size:17px">${esc(t('appName'))}</b></div>
+      ${items.map(i => `<button class="navi ${i.on ? 'on' : ''}" data-act="nav" data-id="${esc(i.id)}"><span class="em">${i.em}</span><span>${esc(i.label)}</span></button>`).join('')}</aside>
+    <div class="main-col"><header class="topbar glass">
+      <div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="hdTitle"></div><div class="muted" style="font-size:12px">${esc(S.user.name || S.user.username)}</div></div>
+      <span id="statusPill" class="pill"></span>
+      ${isAdmin ? `<button class="btn icon ghost" id="bell" data-act="alerts" style="position:relative">${ic('bell')}<span id="bellN"></span></button>` : ''}
+      <button class="btn icon ghost" data-act="theme" title="${esc(t('theme'))}">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button>
+      <button class="btn icon ghost" data-act="lang" title="${esc(t('language'))}">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button>
+      <button class="btn icon ghost" data-act="logout" title="${esc(t('logout'))}">${ic('logout')}</button></header>
+      <main id="main"></main>
+      <nav class="bottom-nav glass">${items.map(i => `<button class="bnav ${i.on ? 'on' : ''}" data-act="nav" data-id="${esc(i.id)}"><span class="em">${i.em}</span><span>${esc(i.label)}</span></button>`).join('')}</nav></div></div>
+    <button id="fab" data-act="add" aria-label="${esc(t('add'))}" style="display:none">${ic('plus')}</button>`;
+  renderStatus(); renderBell(); renderMain();
+}
+function renderBell() { const n = $('#bellN'); if (!n) return; n.innerHTML = S.alerts ? `<i style="position:absolute;top:2px;inset-inline-end:2px;min-width:16px;height:16px;border-radius:9px;background:var(--err);color:#fff;font-size:10px;font-style:normal;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px">${S.alerts}</i>` : ''; }
+function renderMain() {
+  clearInterval(S.adminTimer);
+  if (S.view.kind === 'admin' && S.user.role === 'admin') { $('#hdTitle').textContent = '🛡️ ' + t('admin'); $('#fab').style.display = 'none'; renderAdmin(); }
+  else { S.view.kind = 'tab'; renderTabShell(); }
+}
+
+/* ----------------------------- tab view ----------------------------- */
+function renderTabShell() {
+  const main = $('#main'), fab = $('#fab'), sc = schemaOf(S.view.tab);
+  if (!sc) { $('#hdTitle').textContent = t('appName'); fab.style.display = 'none'; main.innerHTML = `<div class="card" style="text-align:center;padding:40px">${esc(t('noTabs'))}</div>`; return; }
+  $('#hdTitle').textContent = `${sc.icon || ''} ${tl(sc)}`; fab.style.display = canR(sc, 'w') ? 'flex' : 'none';
+  const sel = vf(sc).find(f => f.type === 'select' && f.options?.length); const lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards');
+  main.innerHTML = `<div style="display:flex;gap:8px;margin-bottom:12px"><div style="position:relative;flex:1"><span style="position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)">${ic('search')}</span>
+      <input id="q" class="inp" style="padding-inline-start:42px" placeholder="${esc(t('search'))}" autocomplete="off" value="${esc(S.search)}"><div id="sugg" class="sugg glass" style="display:none"></div></div>
+      <button class="btn icon" data-act="layout" title="layout">${ic(lay === 'table' ? 'grid' : 'list')}</button></div>
+    ${sel ? `<div class="chips" id="fchips" style="margin-bottom:14px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px"><button class="chip ${!S.filter[sc.name] ? 'on' : ''}" data-f="">${esc(t('all'))}</button>${sel.options.map(o => `<button class="chip ${S.filter[sc.name] === o ? 'on' : ''}" data-f="${esc(o)}">${esc(o)}</button>`).join('')}</div>` : ''}
+    <div id="list"></div>`;
+  const q = $('#q'); q.addEventListener('input', debounce(() => { S.search = q.value; S.limit = CONFIG.PAGE; renderList(); renderSugg(); }, 80));
+  q.addEventListener('focus', renderSugg); q.addEventListener('blur', () => setTimeout(() => { const s = $('#sugg'); if (s) s.style.display = 'none'; }, 180));
+  renderList();
+}
+function rowsFor(sc) {
+  const q = S.search.trim().toLowerCase().split(/\s+/).filter(Boolean), flt = S.filter[sc.name], sel = vf(sc).find(f => f.type === 'select' && f.options?.length);
+  return [...dataOf(sc.name).values()].filter(r => (!flt || !sel || r[sel.key] === flt) && (!q.length || (() => { const h = vf(sc).map(f => displayVal(f, r[f.key])).join(' ').toLowerCase(); return q.every(k => h.includes(k)); })()))
+    .sort((a, b) => (b._updated || 0) - (a._updated || 0));
+}
+function hl(s, q) {
+  s = esc(s); const tk = q.trim().split(/\s+/).filter(Boolean); if (!tk.length) return s;
+  return s.replace(new RegExp('(' + tk.map(k => escRe(esc(k))).join('|') + ')', 'gi'), '<mark class="mk">$1</mark>');
+}
+function renderSugg() {
+  const box = $('#sugg'); if (!box) return; const sc = schemaOf(S.view.tab); const q = S.search.trim();
+  if (!q || !sc) { box.style.display = 'none'; return; }
+  const tf = vf(sc)[0], rows = rowsFor(sc).slice(0, 5);
+  box.style.display = rows.length ? 'block' : 'none';
+  box.innerHTML = rows.map(r => `<button data-act="open" data-id="${esc(r._id)}">${hl(displayVal(tf, r[tf.key]) || '—', q)}</button>`).join('');
+}
+function renderList() {
+  const box = $('#list'); const sc = schemaOf(S.view.tab); if (!box || !sc || S.view.kind !== 'tab') return;
+  const rows = rowsFor(sc), q = S.search, f = vf(sc), lay = S.layout || (innerWidth >= 1024 ? 'table' : 'cards'), shown = rows.slice(0, S.limit);
+  if (!rows.length) { box.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--muted)"><div style="font-size:46px;margin-bottom:8px">🗂️</div><b style="color:var(--text)">${esc(t('noData'))}</b><div>${canR(sc, 'w') ? esc(t('noDataHint')) : ''}</div></div>`; return; }
+  const more = rows.length > shown.length ? `<button class="btn" style="width:100%;margin-top:8px" data-act="more">+ ${rows.length - shown.length}</button>` : '';
+  if (lay === 'table') {
+    const cols = f.filter(x => x.type !== 'longtext').slice(0, 8);
+    box.innerHTML = `<table class="t"><thead><tr><th></th>${cols.map(c => `<th>${esc(fl(c))}</th>`).join('')}</tr></thead><tbody>${shown.map(r => `<tr class="row" data-act="open" data-id="${esc(r._id)}"><td style="width:20px">${r._pending ? '<span class="dotp"></span>' : ''}</td>${cols.map((c, i) => `<td>${i === 0 ? '<b>' : ''}${hl(displayVal(c, r[c.key]), q)}${i === 0 ? '</b>' : ''}</td>`).join('')}</tr>`).join('')}</tbody></table>${more}`;
+  } else {
+    const tf = f[0], sel = f.find(x => x.type === 'select'), subs = f.filter(x => x !== tf && x !== sel && !['longtext', 'file', 'checkbox'].includes(x.type)).slice(0, 2);
+    box.innerHTML = shown.map((r, i) => `<div class="swipe" data-id="${esc(r._id)}" style="animation-delay:${Math.min(i, 8) * 25}ms"><div class="swipe-bg"><span class="e">${ic('edit')}</span><span class="x">${ic('trash')}</span></div>
+      <div class="card" data-act="open" data-id="${esc(r._id)}"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px">${hl(displayVal(tf, r[tf.key]) || '—', q)}</b>${r._pending ? '<span class="dotp"></span>' : ''}${sel && r[sel.key] ? `<span class="tag">${esc(r[sel.key])}</span>` : ''}</div>
+      <div class="muted" style="font-size:13px;margin-top:5px;display:flex;flex-wrap:wrap;gap:4px 14px">${subs.map(s => displayVal(s, r[s.key]) ? `<span>${hl(displayVal(s, r[s.key]), q)}</span>` : '').join('')}${f.some(x => x.type === 'file' && r[x.key]?.length) ? `<span>📎</span>` : ''}</div></div></div>`).join('') + more;
+  }
+}
+/* swipe gestures on cards */
+(() => {
+  let st = null;
+  document.addEventListener('touchstart', e => { const c = e.target.closest('.swipe .card'); if (!c) return; st = { c, x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null }; c.style.transition = 'none'; }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!st) return; const dx = e.touches[0].clientX - st.x, dy = e.touches[0].clientY - st.y;
+    if (st.lock == null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) st.lock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    if (st.lock === 'x') { st.dx = dx; st.c.style.transform = `translateX(${dx}px)`; }
+  }, { passive: true });
+  document.addEventListener('touchend', async () => {
+    if (!st) return; const { c, dx } = st; st = null; c.style.transition = 'transform .2s'; c.style.transform = '';
+    if (Math.abs(dx) < 90) return; c.dataset.sw = '1'; setTimeout(() => delete c.dataset.sw, 350);
+    const id = c.dataset.id, sc = schemaOf(S.view.tab), d = dx * (document.dir === 'rtl' ? -1 : 1);
+    if (d > 0) openRecord(id); else if (canR(sc, 'd')) softDelete(sc.name, id);
+  });
+})();
+function softDelete(tab, id) {
+  const m = dataOf(tab), rec = m.get(id); if (!rec) return; let undone = false;
+  const el = $(`.swipe[data-id="${CSS.escape(id)}"]`); if (el) { el.style.transition = 'all .25s'; el.style.opacity = '0'; el.style.transform = 'scale(.96)'; setTimeout(() => el.style.display = 'none', 250); }
+  toast(t('deleted'), 'warn', { action: t('undo'), ms: 4500, onAction: () => { undone = true; renderList(); } });
+  setTimeout(() => { if (!undone) deleteRecord(tab, id); }, 4600);
+}
+
+/* ----------------------------- field rendering (form mode) ----------------------------- */
+const fid = f => 'f_' + f.key.replace(/\W/g, '_');
+function fieldHtml(f, v, ro) {
+  const dis = (ro || f.readonly) ? 'disabled' : '', k = esc(f.key);
+  let inp = '';
+  switch (f.type) {
+    case 'longtext': inp = `<div class="crow" style="align-items:flex-start"><textarea class="inp" id="${fid(f)}" data-k="${k}" ${dis}>${esc(v)}</textarea>${dis ? '' : micButton(fid(f))}</div>`; break;
+    case 'number': inp = `<input class="inp" id="${fid(f)}" data-k="${k}" type="number" inputmode="decimal" step="any" ${f.min !== undefined ? `min="${f.min}"` : ''} ${f.max !== undefined ? `max="${f.max}"` : ''} value="${esc(v)}" ${dis}>`; break;
+    case 'date': inp = `<input class="inp" id="${fid(f)}" data-k="${k}" type="date" value="${esc(v)}" ${dis}>`; break;
+    case 'datetime': inp = `<input class="inp" id="${fid(f)}" data-k="${k}" type="datetime-local" value="${esc(v)}" ${dis}>`; break;
+    case 'phone': inp = `<input class="inp" id="${fid(f)}" data-k="${k}" type="tel" inputmode="tel" dir="ltr" style="text-align:start" value="${esc(v)}" ${dis}>`; break;
+    case 'email': inp = `<input class="inp" id="${fid(f)}" data-k="${k}" type="email" dir="ltr" style="text-align:start" value="${esc(v)}" ${dis}>`; break;
+    case 'select':
+      if (f.lookup || (f.options || []).length > 6) inp = `<input class="inp" id="${fid(f)}" data-k="${k}" list="dl_${fid(f)}" value="${esc(v)}" autocomplete="off" ${dis}><datalist id="dl_${fid(f)}">${(f.options || []).map(o => `<option value="${esc(o)}">`).join('')}</datalist>`;
+      else inp = `<div class="chips" data-k="${k}" data-t="select">${(f.options || []).map(o => `<button type="button" class="chip ${v === o ? 'on' : ''}" data-v="${esc(o)}" ${dis}>${esc(o)}</button>`).join('')}</div>`; break;
+    case 'multiselect': inp = `<div class="chips" data-k="${k}" data-t="multi">${(f.options || []).map(o => `<button type="button" class="chip ${(v || []).includes(o) ? 'on' : ''}" data-v="${esc(o)}" ${dis}>${esc(o)}</button>`).join('')}</div>`; break;
+    case 'checkbox': inp = `<div class="switch ${v ? 'on' : ''}" data-k="${k}" data-t="check" role="switch" aria-checked="${!!v}"></div>`; break;
+    case 'calc': inp = `<div class="calcv" data-calc="${k}">${esc(displayVal(f, v) || '—')}</div>`; break;
+    case 'file': inp = `<div class="fz" data-k="${k}">${fileZoneHtml(f, v, ro)}</div>`; break;
+    default: inp = `<div class="crow"><input class="inp" id="${fid(f)}" data-k="${k}" value="${esc(v)}" autocomplete="off" ${dis}>${dis ? '' : micButton(fid(f))}</div>`;
+  }
+  return `<div class="fld" data-fk="${k}"><label class="lab" for="${fid(f)}">${esc(fl(f))}<b class="req" ${f.req ? '' : 'hidden'}>*</b></label>${inp}<div class="err"></div></div>`;
+}
+function fileZoneHtml(f, arr, ro) {
+  const max = f.maxFiles || 3;
+  return `${ro || (arr || []).length >= max ? '' : `<label class="dz">${ic('upload')}<div style="margin-top:4px;font-size:13px">${esc(t('dropFiles'))}</div><input type="file" hidden multiple data-fin="${esc(f.key)}"></label>`}
+  ${(arr || []).map((it, i) => `<div class="fi"><span>${ic('file')}</span><div class="nm" data-open="${i}">${esc(it.name)}${it.pending ? ' ⏳' : ''}<div class="bar" ${it.status === 'uploading' ? '' : 'hidden'}><i style="width:${Math.round((it.progress || 0) * 100)}%"></i></div></div><span class="muted">${it.size ? Math.max(1, Math.round(it.size / 1024)) + ' KB' : ''}</span>${ro ? '' : `<button type="button" class="btn icon ghost" data-rm="${i}" style="padding:4px">${ic('x')}</button>`}</div>`).join('')}`;
+}
+async function handleFiles(tab, f, draft, files, rerender) {
+  const max = f.maxFiles || 3, maxMB = f.maxMB || CONFIG.DEFAULT_MAX_MB; draft[f.key] = draft[f.key] || [];
+  for (const file of files) {
+    if (draft[f.key].length >= max) { toast(t('tooMany', max), 'warn'); break; }
+    if (file.size > maxMB * 1048576) { toast(t('tooLarge', file.name, maxMB), 'err'); continue; }
+    const it = { lid: uid(), name: file.name, size: file.size, status: 'uploading', progress: 0 }; draft[f.key].push(it); rerender();
+    const finish = r => { const i = draft[f.key].indexOf(it); if (i >= 0) draft[f.key][i] = r; rerender(); };
+    if (!navigator.onLine || !S.online) { await DB.put('files', { lid: it.lid, blob: file, name: file.name, type: file.type }); finish({ lid: it.lid, name: file.name, size: file.size, pending: true }); toast(t('fileOffline'), 'warn'); continue; }
+    try { const r = await uploadFile(tab, f.key, file, p => { it.progress = p; const bar = $('.bar i', $(`.fz[data-k="${CSS.escape(f.key)}"]`) || document); rerender(true); }); finish(r); }
+    catch (e) {
+      if (e.code === 'network') { await DB.put('files', { lid: it.lid, blob: file, name: file.name, type: file.type }); finish({ lid: it.lid, name: file.name, size: file.size, pending: true }); toast(t('fileOffline'), 'warn'); }
+      else { const i = draft[f.key].indexOf(it); if (i >= 0) draft[f.key].splice(i, 1); rerender(); toast(e.message, 'err'); }
+    }
+  }
+}
+async function openFileItem(tab, it) {
+  try {
+    let blob;
+    if (it.pending) { const r = await DB.get('files', it.lid); if (!r) return; blob = r.blob; }
+    else { const r = await api('file_get', { tab, id: it.id }); const bin = atob(r.data), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); blob = new Blob([u8], { type: r.mime }); }
+    const url = URL.createObjectURL(blob); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { toast(e.code === 'network' ? t('networkErr') : e.message, 'err'); }
+}
+
+/* bind generic form behaviour to a container */
+function bindForm(root, tab, sc, draft, ro) {
+  const refreshAll = () => {
+    recalc(sc, draft);
+    sc.fields.forEach(f => {
+      const w = $(`.fld[data-fk="${CSS.escape(f.key)}"]`, root); if (!w) return;
+      w.classList.toggle('off', !!(f.showIf && !cond(f.showIf, draft)));
+      const star = $('.req', w); if (star) star.hidden = !(f.req || (f.reqIf && cond(f.reqIf, draft)));
+      if (f.type === 'calc') $('.calcv', w).textContent = displayVal(f, draft[f.key]) || '—';
+    });
+  };
+  const rerenderFile = f => (soft) => { const z = $(`.fz[data-k="${CSS.escape(f.key)}"]`, root); if (!z) return; if (soft) { $$('.fi', z).forEach((el, i) => { const it = draft[f.key][i]; if (it && it.status === 'uploading') { $('.bar', el).hidden = false; $('.bar i', el).style.width = Math.round((it.progress || 0) * 100) + '%'; } }); return; } z.innerHTML = fileZoneHtml(f, draft[f.key], ro); };
+  const onVal = e => {
+    const el = e.target.closest('input[data-k],textarea[data-k]'); if (!el || el.type === 'file') return;
+    draft[el.dataset.k] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
+    el.closest('.fld')?.classList.remove('bad'); refreshAll();
+  };
+  root.addEventListener('input', onVal); root.addEventListener('change', onVal);
+  root.addEventListener('click', e => {
+    const mic = e.target.closest('[data-mic]'); if (mic) return startVoice(mic, document.getElementById(mic.dataset.mic));
+    const chip = e.target.closest('.chip'); if (chip && !chip.disabled) {
+      const box = chip.closest('[data-k]'), k = box.dataset.k, v = chip.dataset.v;
+      if (box.dataset.t === 'select') { draft[k] = draft[k] === v ? '' : v; $$('.chip', box).forEach(c => c.classList.toggle('on', c.dataset.v === draft[k])); }
+      else { const a = draft[k] || []; draft[k] = a.includes(v) ? a.filter(x => x !== v) : [...a, v]; chip.classList.toggle('on'); }
+      box.closest('.fld')?.classList.remove('bad'); refreshAll(); return;
+    }
+    const sw = e.target.closest('.switch'); if (sw && !ro) { draft[sw.dataset.k] = !draft[sw.dataset.k]; sw.classList.toggle('on', draft[sw.dataset.k]); refreshAll(); return; }
+    const z = e.target.closest('.fz'); if (!z) return; const f = sc.fields.find(x => x.key === z.dataset.k);
+    const rm = e.target.closest('[data-rm]'); if (rm) { const it = draft[f.key].splice(+rm.dataset.rm, 1)[0]; if (it?.lid) DB.del('files', it.lid); rerenderFile(f)(); return; }
+    const op = e.target.closest('[data-open]'); if (op) openFileItem(tab, draft[f.key][+op.dataset.open]);
+  });
+  root.addEventListener('change', e => { const fin = e.target.closest('[data-fin]'); if (!fin) return; const f = sc.fields.find(x => x.key === fin.dataset.fin); handleFiles(tab, f, draft, [...fin.files], rerenderFile(f)); fin.value = ''; });
+  root.addEventListener('dragover', e => { const d = e.target.closest('.dz'); if (d) { e.preventDefault(); d.classList.add('drag'); } });
+  root.addEventListener('dragleave', e => { const d = e.target.closest('.dz'); if (d) d.classList.remove('drag'); });
+  root.addEventListener('drop', e => { const d = e.target.closest('.dz'); if (!d) return; e.preventDefault(); d.classList.remove('drag'); const f = sc.fields.find(x => x.key === d.closest('.fz').dataset.k); handleFiles(tab, f, draft, [...e.dataTransfer.files], rerenderFile(f)); });
+  refreshAll(); return refreshAll;
+}
+function markErrors(root, errs) {
+  $$('.fld', root).forEach(w => { const m = errs[w.dataset.fk]; w.classList.toggle('bad', !!m); const e = $('.err', w); if (e) e.textContent = m || ''; });
+  const first = $('.fld.bad', root); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+async function submitDraft(tab, id, draft, isNew, root) {
+  const sc = schemaOf(tab);
+  if (Object.values(draft).some(v => Array.isArray(v) && v.some(x => x && x.status === 'uploading'))) { toast(t('uploadWait'), 'warn'); return false; }
+  const errs = validateDraft(sc, draft);
+  if (Object.keys(errs).length) { if (root) markErrors(root, errs); else toast(Object.values(errs)[0], 'err'); toast(t('required'), 'err'); return false; }
+  const d = clone(draft); sc.fields.forEach(f => { if (f.showIf && !cond(f.showIf, d)) d[f.key] = blank(f); if (f.type === 'file') d[f.key] = (d[f.key] || []).map(x => { const { status, progress, ...r } = x; return r; }); });
+  await saveRecord(tab, id, d, isNew); toast(navigator.onLine && S.online ? t('saved') : t('savedOffline'), navigator.onLine && S.online ? 'ok' : 'warn'); closeSheet(true); return true;
+}
+
+/* ----------------------------- record sheet (form mode) ----------------------------- */
+function openRecord(id) {
+  const tab = S.view.tab, sc = schemaOf(tab); if (!sc) return;
+  const ex = id ? dataOf(tab).get(id) : null; if (id && !ex) return;
+  const ro = id ? !canR(sc, 'w') : false, isNew = !id, rid = id || uid();
+  const draft = ex ? Object.fromEntries(sc.fields.map(f => [f.key, clone(ex[f.key] ?? blank(f))])) : blankDraft(sc);
+  const o = openSheet(`<div class="hd"><h3>${esc(isNew ? t('newRecord') : (displayVal(vf(sc)[0], ex[vf(sc)[0].key]) || tl(sc)))}${ro ? ` <span class="tag">${esc(t('readOnly'))}</span>` : ''}</h3><div style="display:flex;gap:6px">${isNew ? `<button class="btn icon ghost" data-go="chat" title="${esc(t('chatMode'))}">${ic('chat')}</button>` : ''}<button class="btn icon ghost" data-go="x">${ic('x')}</button></div></div>
+    <div id="formRoot">${vf(sc).map(f => fieldHtml(f, draft[f.key], ro)).join('')}</div>
+    <div style="display:flex;gap:10px;position:sticky;bottom:0;padding-top:8px">${!isNew && canR(sc, 'd') ? `<button class="btn danger icon" data-go="del">${ic('trash')}</button>` : ''}<button class="btn" style="flex:1" data-go="x">${esc(t('cancel'))}</button>${ro ? '' : `<button class="btn primary" style="flex:2" data-go="save">${ic('check')} ${esc(t('save'))}</button>`}</div>`);
+  const root = $('#formRoot', o); bindForm(root, tab, sc, draft, ro);
+  o.addEventListener('click', async e => {
+    const b = e.target.closest('[data-go]'); if (!b) return;
+    if (b.dataset.go === 'x') closeSheet();
+    else if (b.dataset.go === 'chat') { closeSheet(true); openChat(tab, draft, rid); }
+    else if (b.dataset.go === 'save') { b.disabled = true; const ok = await submitDraft(tab, rid, draft, isNew, root); if (!ok) b.disabled = false; }
+    else if (b.dataset.go === 'del') { if (await confirmDlg(t('confirmDel'))) { closeSheet(true); softDelete(tab, rid); } }
+  });
+}
+
+/* ----------------------------- chat-like entry ----------------------------- */
+function openChat(tab, startDraft, rid) {
+  const sc = schemaOf(tab), draft = startDraft ? clone(startDraft) : blankDraft(sc), asked = new Set(), id = rid || uid();
+  const o = openSheet(`<div class="hd"><h3>💬 ${esc(tl(sc))}</h3><div style="display:flex;gap:6px"><button class="btn icon ghost" data-c="form" title="${esc(t('formMode'))}">${ic('list')}</button><button class="btn icon ghost" data-c="x">${ic('x')}</button></div></div><div class="chat" id="chat"></div><div class="composer" id="comp"></div>`);
+  const chat = $('#chat', o), comp = $('#comp', o); let cur = null;
+  const scroll = () => chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+  const bot = h => { const m = document.createElement('div'); m.className = 'msg bot'; m.innerHTML = h; chat.appendChild(m); scroll(); return m; };
+  const me = h => { const m = document.createElement('div'); m.className = 'msg me'; m.textContent = h; chat.appendChild(m); scroll(); };
+  const typing = () => { const m = bot('<span class="typing"><i></i><i></i><i></i></span>'); return () => m.remove(); };
+  const nextField = () => sc.fields.find(f => !f.hidden && f.type !== 'calc' && !f.readonly && !asked.has(f.key) && (!f.showIf || cond(f.showIf, draft)));
+  async function ask() {
+    const f = nextField(); if (!f) return summary();
+    cur = f; const rm = typing(); await sleep(320); rm(); bot(esc(t('ask', fl(f))) + (f.req ? ' <b class="req">*</b>' : '')); composer(f);
+  }
+  function skipBtn(f) { return f.req && f.type !== 'checkbox' ? '' : `<button class="btn ghost" data-c="skip">${esc(t('skip'))}</button>`; }
+  function composer(f) {
+    const v = draft[f.key]; let h = '';
+    if (f.type === 'select' && !f.lookup && (f.options || []).length <= 12) h = `<div class="chips">${f.options.map(op => `<button class="chip" data-c="pick" data-v="${esc(op)}">${esc(op)}</button>`).join('')}${skipBtn(f)}</div>`;
+    else if (f.type === 'checkbox') h = `<div class="chips"><button class="chip" data-c="bool" data-v="1">${esc(t('yes'))}</button><button class="chip" data-c="bool" data-v="0">${esc(t('no'))}</button></div>`;
+    else if (f.type === 'multiselect') h = `<div class="chips" id="mchips" data-k="${esc(f.key)}" data-t="multi">${f.options.map(op => `<button class="chip ${(v || []).includes(op) ? 'on' : ''}" data-c="mtoggle" data-v="${esc(op)}">${esc(op)}</button>`).join('')}</div><div class="crow"><button class="btn primary" style="flex:1" data-c="mdone">${ic('check')} ${esc(t('done'))}</button>${skipBtn(f)}</div>`;
+    else if (f.type === 'file') h = `<div class="fz" data-k="${esc(f.key)}">${fileZoneHtml(f, draft[f.key])}</div><div class="crow"><button class="btn primary" style="flex:1" data-c="fdone">${ic('check')} ${esc(t('done'))}</button>${skipBtn(f)}</div>`;
+    else {
+      const type = { number: 'number', date: 'date', datetime: 'datetime-local', phone: 'tel', email: 'email' }[f.type] || 'text';
+      h = `<div class="crow"><input class="inp" id="cin" type="${type}" ${type === 'number' ? 'inputmode="decimal" step="any"' : ''} ${f.lookup || (f.type === 'select') ? `list="cdl"` : ''} placeholder="${esc(t('typeHere'))}" autocomplete="off" ${['phone', 'email'].includes(f.type) ? 'dir="ltr"' : ''}>${(f.lookup || f.type === 'select') ? `<datalist id="cdl">${(f.options || []).map(op => `<option value="${esc(op)}">`).join('')}</datalist>` : ''}${['text', 'longtext'].includes(f.type) ? micButton('cin') : ''}<button class="btn primary icon" data-c="send">${ic('send')}</button></div>${skipBtn(f) ? `<div>${skipBtn(f)}</div>` : ''}`;
+    }
+    comp.innerHTML = h; const inp = $('#cin', comp); if (inp) setTimeout(() => inp.focus(), 80);
+  }
+  async function answer(f, val, shown) {
+    const tmp = { ...draft, [f.key]: val }, err = fieldError(sc, f, tmp);
+    if (err) { comp.animate([{ transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'none' }], 200); toast(err === t('required') ? t('required') : err, 'err', { ms: 1800 }); return; }
+    draft[f.key] = val; asked.add(f.key); recalc(sc, draft); comp.innerHTML = '';
+    if (shown !== null) me(shown ?? (displayVal(f, val) || '—')); await ask();
+  }
+  async function summary() {
+    cur = null; const rm = typing(); await sleep(350); rm();
+    const lines = vf(sc).filter(f => !isEmpty(draft[f.key]) && (!f.showIf || cond(f.showIf, draft))).map(f => `<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0"><span class="muted">${esc(fl(f))}</span><b>${esc(displayVal(f, draft[f.key]))}</b></div>`).join('');
+    bot(`<b>${esc(t('summary'))}</b><div style="margin-top:8px">${lines}</div>`);
+    comp.innerHTML = `<div class="crow"><button class="btn" style="flex:1" data-c="edit">${ic('edit')} ${esc(t('editInForm'))}</button><button class="btn primary" style="flex:1" data-c="save">${ic('check')} ${esc(t('save'))}</button></div>`;
+  }
+  o.addEventListener('click', async e => {
+    const mic = e.target.closest('[data-mic]'); if (mic) return startVoice(mic, $('#cin', o));
+    const fz = e.target.closest('.fz'); if (fz && cur?.type === 'file') {
+      const rm = e.target.closest('[data-rm]'); if (rm) { const it = draft[cur.key].splice(+rm.dataset.rm, 1)[0]; if (it?.lid) DB.del('files', it.lid); fz.innerHTML = fileZoneHtml(cur, draft[cur.key]); } return;
+    }
+    const b = e.target.closest('[data-c]'); if (!b) return; const a = b.dataset.c;
+    if (a === 'x') return closeSheet();
+    if (a === 'form') { closeSheet(true); return openChatToForm(); }
+    if (a === 'skip') { asked.add(cur.key); comp.innerHTML = ''; me('—'); return ask(); }
+    if (a === 'pick') return answer(cur, b.dataset.v);
+    if (a === 'bool') return answer(cur, b.dataset.v === '1', b.dataset.v === '1' ? t('yes') : t('no'));
+    if (a === 'mtoggle') { const arr = draft[cur.key] || []; draft[cur.key] = arr.includes(b.dataset.v) ? arr.filter(x => x !== b.dataset.v) : [...arr, b.dataset.v]; b.classList.toggle('on'); return; }
+    if (a === 'mdone') return answer(cur, draft[cur.key] || []);
+    if (a === 'fdone') { if ((draft[cur.key] || []).some(x => x.status === 'uploading')) return toast(t('uploadWait'), 'warn'); return answer(cur, draft[cur.key] || []); }
+    if (a === 'send') { const inp = $('#cin', o); let v = inp.value.trim(); if (cur.type === 'number' && v !== '') v = Number(v); return answer(cur, v, cur.type === 'number' || cur.type === 'date' || cur.type === 'datetime' ? undefined : String(v)); }
+    if (a === 'edit') { closeSheet(true); return openChatToForm(); }
+    if (a === 'save') { b.disabled = true; const ok = await submitDraft(tab, id, draft, true, null); if (!ok) b.disabled = false; }
+  });
+  o.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'cin') { e.preventDefault(); $('[data-c=send]', o)?.click(); } });
+  o.addEventListener('change', e => { const fin = e.target.closest('[data-fin]'); if (!fin || !cur) return; const f = cur; handleFiles(tab, f, draft, [...fin.files], () => { const z = $(`.fz`, comp); if (z) z.innerHTML = fileZoneHtml(f, draft[f.key]); }); fin.value = ''; });
+  o.addEventListener('dragover', e => { if (e.target.closest('.dz')) e.preventDefault(); });
+  o.addEventListener('drop', e => { if (!e.target.closest('.dz') || !cur) return; e.preventDefault(); const f = cur; handleFiles(tab, f, draft, [...e.dataTransfer.files], () => { const z = $(`.fz`, comp); if (z) z.innerHTML = fileZoneHtml(f, draft[f.key]); }); });
+  function openChatToForm() { openNewFormWith(tab, draft, id); }
+  bot('👋 ' + esc(t('switchedChat'))); ask();
+}
+function openNewFormWith(tab, draft, rid) {
+  const sc = schemaOf(tab), o = openSheet(`<div class="hd"><h3>${esc(t('newRecord'))}</h3><div style="display:flex;gap:6px"><button class="btn icon ghost" data-go="chat">${ic('chat')}</button><button class="btn icon ghost" data-go="x">${ic('x')}</button></div></div><div id="formRoot">${vf(sc).map(f => fieldHtml(f, draft[f.key], false)).join('')}</div><div style="display:flex;gap:10px;position:sticky;bottom:0;padding-top:8px"><button class="btn" style="flex:1" data-go="x">${esc(t('cancel'))}</button><button class="btn primary" style="flex:2" data-go="save">${ic('check')} ${esc(t('save'))}</button></div>`);
+  const root = $('#formRoot', o); bindForm(root, tab, sc, draft, false);
+  o.addEventListener('click', async e => { const b = e.target.closest('[data-go]'); if (!b) return; if (b.dataset.go === 'x') closeSheet(); else if (b.dataset.go === 'chat') { closeSheet(true); openChat(tab, draft, rid); } else if (b.dataset.go === 'save') { b.disabled = true; if (!await submitDraft(tab, rid, draft, true, root)) b.disabled = false; } });
+}
+
+/* ----------------------------- admin dashboard ----------------------------- */
+function renderAdmin() {
+  const sec = S.view.admin, names = { overview: 'overview', users: 'users', audit: 'audit', tabs: 'tabs' };
+  $('#main').innerHTML = `<div class="sub">${Object.keys(names).map(k => `<button class="btn ${sec === k ? 'primary' : ''}" data-act="adm" data-id="${k}">${esc(t(k === 'audit' ? 'audit' : k))}</button>`).join('')}</div><div id="adm"></div>`;
+  ({ overview: admOverview, users: admUsers, audit: admAudit, tabs: admTabs }[sec] || admOverview)();
+}
+const adminErr = e => { if (e.code !== 'auth') toast(e.code === 'network' ? t('networkErr') : e.message, 'err'); };
+function presenceText(u) { return u.online ? t('onlineSince', hhmm(u.since)) : t('lastSeen', relTime(u.lastSeen)); }
+async function admOverview() {
+  const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
+  const load = async () => {
+    try {
+      const r = await api('admin_overview'); if (S.view.kind !== 'admin' || S.view.admin !== 'overview') return;
+      S.alerts = r.kpis.openAlerts; renderBell(); const k = r.kpis, max = Math.max(1, ...r.hourly), now = new Date().getHours();
+      box.innerHTML = `<div class="kpis">${[['onlineNow', k.online, 'var(--ok)'], ['totalUsers', k.total, 'var(--accent)'], ['actionsToday', k.actionsToday, 'var(--accent2)'], ['openAlerts', k.openAlerts, k.openAlerts ? 'var(--err)' : 'var(--muted)']].map(([l, v, c]) => `<div class="kpi glass" style="--c:${c}"><small>${esc(t(l))}</small><b style="color:${c}">${v}</b></div>`).join('')}</div>
+      ${r.alerts.length ? `<div style="margin-top:14px">${r.alerts.map(a => `<div class="alert"><span style="font-size:22px">🚨</span><div style="flex:1"><b>${esc(t('brute'))}</b><div style="font-size:13px">${esc(a.message)}</div><div class="muted" style="font-size:12px">${fullTime(a.ts)}</div></div><button class="btn" data-act="ack" data-id="${esc(a.id)}">${esc(t('ack'))}</button></div>`).join('')}</div>` : ''}
+      <div class="card glass" style="margin-top:14px"><b>${esc(t('onlineNow'))} / ${esc(t('users'))}</b>${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}<span class="on ${u.online ? 'y' : ''}"></span></div><div style="flex:1;min-width:0"><b>${esc(u.name || u.username)}</b> <span class="badge">${esc(u.role)}</span>${u.locked ? ` <span class="badge" style="color:var(--err)">🔒 ${esc(t('locked'))}</span>` : ''}${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px">@${esc(u.username)} · ${esc(presenceText(u))}</div></div>${u.locked ? `<button class="btn" data-act="unlock" data-id="${esc(u.username)}">${esc(t('unlock'))}</button>` : ''}</div>`).join('')}</div>
+      <div class="card glass" style="margin-top:14px"><b>${esc(t('activity24'))}</b><svg viewBox="0 0 240 70" style="width:100%;height:90px;margin-top:8px">${r.hourly.map((v, i) => { const h = Math.round(v / max * 56); return `<rect x="${i * 10 + 1}" y="${64 - h}" width="8" height="${Math.max(h, 2)}" rx="2" fill="url(#g)" opacity="${v ? 1 : .25}"/>`; }).join('')}<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent2)"/></linearGradient></defs></svg></div>
+      <div class="card glass" style="margin-top:14px"><b>${esc(t('recent'))}</b>${r.recent.map(a => `<div class="urow" style="font-size:13px"><span class="badge ${esc(a.action)}">${esc(a.action)}</span><b>${esc(a.user)}</b><span class="muted" style="flex:1">${esc(a.tab)}</span><span class="muted">${hhmm(a.ts)}</span></div>`).join('') || `<div class="muted">—</div>`}</div>`;
+    } catch (e) { adminErr(e); }
+  };
+  await load(); S.adminTimer = setInterval(load, CONFIG.ADMIN_POLL_MS);
+}
+async function admAudit() {
+  const box = $('#adm'), q = S.auditQ; box.innerHTML = '<div class="skeleton"></div>';
+  try {
+    const [u, r] = await Promise.all([api('admin_users'), api('admin_audit', { filters: q.filters, page: q.page })]); const F = q.filters;
+    box.innerHTML = `<div class="card glass" style="margin-bottom:12px"><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px" class="md:grid-cols-4">
+      <select class="inp" id="aq_user"><option value="">${esc(t('user'))}: ${esc(t('allUsers'))}</option>${u.users.map(x => `<option ${F.user === x.username ? 'selected' : ''}>${esc(x.username)}</option>`).join('')}</select>
+      <select class="inp" id="aq_tab"><option value="">${esc(t('allTabs'))}</option>${u.tabs.map(x => `<option ${F.tab === x.name ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+      <select class="inp" id="aq_action"><option value="">${esc(t('allActions'))}</option>${ACTIONS.map(x => `<option ${F.action === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
+      <input class="inp" id="aq_text" placeholder="${esc(t('search'))}" value="${esc(F.text || '')}">
+      <input class="inp" id="aq_from" type="date" value="${esc(F.from || '')}" title="${esc(t('from'))}"><input class="inp" id="aq_to" type="date" value="${esc(F.to || '')}" title="${esc(t('to'))}">
+      <button class="btn primary" data-act="aq_apply" style="grid-column:span 2">${ic('search')} ${esc(t('apply'))}</button></div></div>
+      <div class="muted" style="margin:0 4px 8px;font-size:13px">${r.total} ${esc(t('rows'))}</div><div style="overflow-x:auto"><table class="t"><thead><tr><th>${esc(t('time'))}</th><th>${esc(t('user'))}</th><th>${esc(t('action'))}</th><th>${esc(t('tabs'))}</th><th>${esc(t('details'))}</th></tr></thead><tbody>
+      ${r.rows.map(a => `<tr><td style="white-space:nowrap">${fullTime(a.ts)}</td><td>${esc(a.user)}</td><td><span class="badge ${esc(a.action)}">${esc(a.action)}</span></td><td>${esc(a.tab)}<div class="muted" style="font-size:11px">${esc(String(a.rowId).slice(0, 8))}</div></td><td style="max-width:360px"><details><summary class="muted" style="cursor:pointer;font-size:12px">${esc(String(a.details).slice(0, 60))}</summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:11px;margin:6px 0 0">${esc(prettyJson(a.details))}</pre></details></td></tr>`).join('')}</tbody></table></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted" style="align-self:center">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
+  } catch (e) { adminErr(e); }
+}
+const prettyJson = s => { try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; } };
+async function admUsers() {
+  const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
+  try {
+    const r = await api('admin_users'); S._adm = r;
+    box.innerHTML = `<button class="btn primary" data-act="user_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('newUser'))}</button><div class="card glass">${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}</div><div style="flex:1;min-width:0"><b>${esc(u.name)}</b> <span class="badge">${esc(u.role)}</span>${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@${esc(u.username)} · ${esc(u.role === 'admin' ? '*' : u.perms || '—')}</div></div><button class="btn icon" data-act="user_edit" data-id="${esc(u.username)}">${ic('edit')}</button></div>`).join('')}</div>`;
+  } catch (e) { adminErr(e); }
+}
+function parsePermsClient(s) { const m = {}; String(s || '').split(';').forEach(p => { p = p.trim(); if (!p) return; const i = p.lastIndexOf(':'); m[i < 0 ? p : p.slice(0, i)] = i < 0 ? 'r' : p.slice(i + 1); }); return m; }
+function openUserForm(username) {
+  const r = S._adm, ex = username ? r.users.find(u => u.username === username) : null, pm = parsePermsClient(ex?.perms);
+  const o = openSheet(`<div class="hd"><h3>${esc(ex ? t('editUser') : t('newUser'))}</h3><button class="btn icon ghost" data-u="x">${ic('x')}</button></div>
+    <div class="fld"><label class="lab">${esc(t('username'))}</label><input class="inp" id="u_name" ${ex ? 'disabled' : ''} value="${esc(ex?.username || '')}" autocapitalize="none" dir="ltr"></div>
+    <div class="fld"><label class="lab">${esc(t('user'))}</label><input class="inp" id="u_full" value="${esc(ex?.name || '')}"></div>
+    <div class="fld"><label class="lab">${esc(t('password'))}</label><input class="inp" id="u_pw" type="password" autocomplete="new-password" placeholder="${esc(ex ? t('pwKeep') : t('pw'))}"></div>
+    <div class="fld"><label class="lab">${esc(t('role'))}</label><div class="chips" id="u_role"><button type="button" class="chip ${ex?.role === 'admin' ? '' : 'on'}" data-v="user">user</button><button type="button" class="chip ${ex?.role === 'admin' ? 'on' : ''}" data-v="admin">admin</button></div></div>
+    <div class="fld" id="u_perms"><label class="lab">${esc(t('permissions'))}</label><div class="pm muted" style="font-weight:700"><span></span><span style="text-align:center">R</span><span style="text-align:center">W</span><span style="text-align:center">D</span></div>
+      ${r.tabs.map(tb => `<div class="pm" style="padding:6px 0;border-top:1px solid var(--border)" data-tab="${esc(tb.name)}"><span>${esc(tb.label)}</span>${['r', 'w', 'd'].map(c => `<label class="c"><input type="checkbox" data-r="${c}" ${(pm[tb.name] || '').includes(c) ? 'checked' : ''}></label>`).join('')}</div>`).join('')}</div>
+    <div class="fld" style="display:flex;align-items:center;justify-content:space-between"><span class="lab" style="margin:0">${esc(t('active'))}</span><div class="switch ${ex?.active === false ? '' : 'on'}" id="u_active"></div></div>
+    <button class="btn primary" data-u="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`);
+  const sync = () => { $('#u_perms', o).style.display = $('#u_role .on', o).dataset.v === 'admin' ? 'none' : ''; }; sync();
+  o.addEventListener('click', async e => {
+    const chip = e.target.closest('#u_role .chip'); if (chip) { $$('#u_role .chip', o).forEach(c => c.classList.toggle('on', c === chip)); sync(); return; }
+    if (e.target.closest('#u_active')) { $('#u_active', o).classList.toggle('on'); return; }
+    const b = e.target.closest('[data-u]'); if (!b) return; if (b.dataset.u === 'x') return closeSheet();
+    const perms = $$('[data-tab]', o).map(row => { const rs = $$('[data-r]', row).filter(c => c.checked).map(c => c.dataset.r).join(''); return rs ? `${row.dataset.tab}:${rs}` : ''; }).filter(Boolean).join(';');
+    b.disabled = true;
+    try { await api('admin_saveUser', { username: $('#u_name', o).value.trim(), name: $('#u_full', o).value.trim(), password: $('#u_pw', o).value, role: $('#u_role .on', o).dataset.v, perms, active: $('#u_active', o).classList.contains('on') }); toast(t('userSaved')); closeSheet(true); admUsers(); }
+    catch (er) { b.disabled = false; adminErr(er); }
+  });
+}
+async function admTabs() {
+  const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
+  try {
+    const r = await api('admin_tabs');
+    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><b>${tb.icon} ${esc(tb.label)}</b> ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
+  } catch (e) { adminErr(e); }
+}
+function openTabBuilder() {
+  const rows = [{ label: '', ar: '', type: 'text', req: false, options: '' }];
+  const TYPES = Object.keys(T_TYPES.en);
+  const o = openSheet(`<div class="hd"><h3>${esc(t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="📄" style="text-align:center"></div></div>
+    <label class="lab">${esc(t('fields'))}</label><div id="b_rows"></div><button class="btn" data-b="add" style="width:100%;margin:6px 0 14px">${ic('plus')} ${esc(t('addField'))}</button><button class="btn primary" data-b="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`, { wide: true });
+  const draw = () => { $('#b_rows', o).innerHTML = rows.map((r, i) => `<div class="card" style="margin-bottom:8px;padding:10px" data-i="${i}"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input class="inp" data-p="label" placeholder="${esc(t('label'))}" value="${esc(r.label)}"><input class="inp" data-p="ar" placeholder="${esc(t('labelAr'))}" value="${esc(r.ar)}"><select class="inp" data-p="type">${TYPES.map(x => `<option value="${x}" ${r.type === x ? 'selected' : ''}>${esc(typeName(x))}</option>`).join('')}</select>
+    <div style="display:flex;align-items:center;gap:8px"><label class="chip ${r.req ? 'on' : ''}" style="flex:1;text-align:center"><input type="checkbox" hidden data-p="req" ${r.req ? 'checked' : ''}>${esc(t('required'))}</label><button class="btn icon danger" data-rm="${i}">${ic('trash')}</button></div></div>
+    ${['select', 'multiselect'].includes(r.type) ? `<input class="inp" style="margin-top:8px" data-p="options" placeholder="${esc(t('options'))}" value="${esc(r.options)}">` : ''}${r.type === 'calc' ? `<input class="inp" style="margin-top:8px" data-p="calc" dir="ltr" placeholder="{Qty}*{Price}" value="${esc(r.calc || '')}">` : ''}${r.type === 'file' ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" type="number" data-p="maxMB" placeholder="max MB" value="${esc(r.maxMB || '')}"><input class="inp" type="number" data-p="maxFiles" placeholder="max files" value="${esc(r.maxFiles || '')}"></div>` : ''}
+    <details style="margin-top:8px"><summary class="muted" style="cursor:pointer;font-size:12px">${esc(t('advanced'))}</summary><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><input class="inp" data-p="showIf" dir="ltr" placeholder="showIf: Status=Hired" value="${esc(r.showIf || '')}"><input class="inp" data-p="reqIf" dir="ltr" placeholder="reqIf: Status=Hired" value="${esc(r.reqIf || '')}"><input class="inp" data-p="lookup" dir="ltr" placeholder="lookup: Clients.Company" value="${esc(r.lookup || '')}"></div></details></div>`).join(''); };
+  draw();
+  o.addEventListener('input', e => { const p = e.target.dataset.p; if (!p) return; const i = +e.target.closest('[data-i]').dataset.i; rows[i][p] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; });
+  o.addEventListener('change', e => { const p = e.target.dataset.p; if (p === 'type' || p === 'req') draw(); });
+  o.addEventListener('click', async e => {
+    const b = e.target.closest('[data-b]'), rm = e.target.closest('[data-rm]');
+    if (rm) { rows.splice(+rm.dataset.rm, 1); if (!rows.length) rows.push({ label: '', ar: '', type: 'text', options: '' }); return draw(); }
+    if (!b) return; if (b.dataset.b === 'x') return closeSheet(); if (b.dataset.b === 'add') { rows.push({ label: '', ar: '', type: 'text', options: '' }); draw(); return; }
+    b.disabled = true;
+    try {
+      await api('admin_createTab', { name: $('#b_name', o).value.trim(), label: $('#b_name', o).value.trim(), ar: $('#b_ar', o).value.trim(), icon: $('#b_icon', o).value.trim() || '📄', fields: rows.map(r => ({ ...r, options: r.options ? r.options.split(',').map(s => s.trim()).filter(Boolean) : [] })) });
+      toast(t('tabCreated')); closeSheet(true); await refresh(); renderApp(); S.view = { kind: 'admin', tab: S.view.tab, admin: 'tabs' }; renderApp();
+    } catch (er) { b.disabled = false; adminErr(er); }
+  });
+}
+
+/* ----------------------------- global actions ----------------------------- */
+document.addEventListener('click', async e => {
+  const el = e.target.closest('[data-act]'); if (!el) {
+    const fc = e.target.closest('#fchips .chip'); if (fc) { S.filter[S.view.tab] = fc.dataset.f || null; $$('#fchips .chip').forEach(c => c.classList.toggle('on', c === fc)); renderList(); } return;
+  }
+  const a = el.dataset.act, id = el.dataset.id;
+  if (el.classList.contains('card') && el.dataset.sw) return;
+  switch (a) {
+    case 'theme': toggleTheme(); break; case 'lang': toggleLang(); break; case 'logout': logout(); break;
+    case 'nav': S.view = id === 'admin' ? { ...S.view, kind: 'admin' } : { ...S.view, kind: 'tab', tab: id.slice(4) }; S.search = ''; S.limit = CONFIG.PAGE; renderApp(); break;
+    case 'add': { const sc = schemaOf(S.view.tab); if (!sc) break; if (innerWidth < 768) openChat(sc.name); else openNewFormWith(sc.name, blankDraft(sc), uid()); break; }
+    case 'open': { const sg = $('#sugg'); if (sg) sg.style.display = 'none'; openRecord(id); break; }
+    case 'more': S.limit += CONFIG.PAGE; renderList(); break;
+    case 'layout': S.layout = (S.layout || (innerWidth >= 1024 ? 'table' : 'cards')) === 'table' ? 'cards' : 'table'; renderTabShell(); break;
+    case 'alerts': S.view = { ...S.view, kind: 'admin', admin: 'overview' }; renderApp(); break;
+    case 'adm': S.view.admin = id; renderApp(); break;
+    case 'ack': try { await api('admin_ackAlert', { id }); admOverview(); } catch (er) { adminErr(er); } break;
+    case 'unlock': try { await api('admin_userAction', { username: id, op: 'unlock' }); toast(t('unlock') + ' ✓'); admOverview(); } catch (er) { adminErr(er); } break;
+    case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break;
+    case 'aq_apply': S.auditQ = { page: 0, filters: { user: $('#aq_user').value, tab: $('#aq_tab').value, action: $('#aq_action').value, text: $('#aq_text').value.trim(), from: $('#aq_from').value, to: $('#aq_to').value } }; admAudit(); break;
+    case 'apage': S.auditQ.page = Math.max(0, S.auditQ.page + Number(id)); admAudit(); break;
+  }
+});
+window.addEventListener('online', () => { S.online = true; renderStatus(); flush(); if (S.token) refresh().then(() => renderMain()).catch(() => {}); });
+window.addEventListener('offline', () => { S.online = false; renderStatus(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) { flush(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ----------------------------- boot ----------------------------- */
+async function boot() {
+  S.lang = localStorage.getItem('hr_lang') || (navigator.language || '').startsWith('ar') ? (localStorage.getItem('hr_lang') || 'ar') : 'en';
+  S.theme = localStorage.getItem('hr_theme') || 'dark'; applyTheme(); applyLang();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  try { await DB.open(); } catch (e) { $('#app').innerHTML = '<p style="padding:30px">IndexedDB unavailable in this browser mode.</p>'; return; }
+  S.token = localStorage.getItem('hr_token');
+  if (!S.token) return renderLogin();
+  await loadLocal(); S.user = await meta.get('user'); S.tabs = (await meta.get('schema')) || []; await refreshPending();
+  if (!S.user || !S.tabs.length && !navigator.onLine) { return S.user ? renderApp() : renderLogin(); }
+  S.view.tab = S.tabs[0]?.name || null; renderApp(); startTimers();
+  if (navigator.onLine) { try { await refresh(); renderApp(); flush(); } catch (e) { if (e.code === 'network') setOnline(false); } }
+}
+boot();
