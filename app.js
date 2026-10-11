@@ -1200,7 +1200,7 @@ document.addEventListener('click', e => {
 (() => {
   const sp = document.getElementById('splash'); if (!sp) return;
   let done = false;
-  const hide = () => { if (done) return; done = true; const wait = Math.max(0, 900 - (Date.now() - (window.__t0 || Date.now()))); setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 600); }, wait); };
+  const hide = () => { if (done) return; done = true; const wait = Math.max(0, 1500 - (Date.now() - (window.__t0 || Date.now()))); setTimeout(() => { if (window.__spDone) window.__spDone(); setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 900); }, 450); }, wait); };
   const app = document.getElementById('app');
   if (app) new MutationObserver(() => { if (app.children.length) hide(); }).observe(app, { childList: true });
   setTimeout(hide, 8000);   // safety: never leave the splash stuck
