@@ -4,7 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzl70taMLi9xGSJrOrFivp4Mt6KYYcrL5ao0N4p9eSYFubzuLbOTi1wNMojJnD55tBXmw/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbyV00quYAm2TL9vcZyTxDKTyV4NZUuLWGrXkgcbV8_5FrQZu52MDuWeafBrK4kYvlg_Hg/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -121,30 +121,35 @@ function cond(expr, data) {
 /* Safe formula engine (same code in app.js and Code.gs). Supports + - * / % ( ), comparisons, dates and functions:
    DAYS(end,start) MONTHS(end,start) YEARS(end,start) ADDDAYS(date,n) ADDMONTHS(date,n) TODAY()
    ROUND(x,n) ABS MIN MAX SUM AVG IF(cond,a,b) AND OR NOT CONCAT */
-function calcVal(expr, data) {
+function calcVal(expr, data, cols) {
   const DAY = 86400000, DRE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/;
   try {
-    const s = String(expr == null ? '' : expr), T = []; let i = 0, m;
+    const s = String(expr == null ? '' : expr).replace(/^\s*=/, ''), T = []; let i = 0, m;
     while (i < s.length) {
       const c = s[i], rest = s.slice(i);
       if (/\s/.test(c)) { i++; continue; }
       if ((m = /^(\d+\.?\d*|\.\d+)/.exec(rest))) { T.push({ t: 'n', v: parseFloat(m[1]) }); i += m[1].length; }
       else if (c === '{') { const j = s.indexOf('}', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
+      else if (c === '[') { const j = s.indexOf(']', i); if (j < 0) return ''; T.push({ t: 'r', v: s.slice(i + 1, j).trim() }); i = j + 1; }
       else if (c === '"' || c === "'") { const j = s.indexOf(c, i + 1); if (j < 0) return ''; T.push({ t: 's', v: s.slice(i + 1, j) }); i = j + 1; }
       else if ((m = /^[A-Za-z_]\w*/.exec(rest))) { T.push({ t: 'i', v: m[0] }); i += m[0].length; }
-      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
+      else if ((m = /^(<=|>=|<>|!=|==|[-+*\/%^&:(),<>=])/.exec(rest))) { T.push({ t: 'o', v: m[1] }); i += m[1].length; }
       else return '';
     }
     let p = 0;
-    const isD = v => v !== null && typeof v === 'object';
-    const num = v => v == null ? 0 : isD(v) ? v.d : typeof v === 'number' ? v : (v === '' || isNaN(Number(v)) ? NaN : Number(v));
+    const isD = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+    const num = v => Array.isArray(v) ? NaN : v == null ? 0 : isD(v) ? v.d : typeof v === 'number' ? v : (v === '' || isNaN(Number(v)) ? NaN : Number(v));
     const ref = k => {
       const v = data[k]; if (v === undefined || v === null || v === '') return null;
       if (typeof v === 'number') return v; if (typeof v === 'boolean') return v ? 1 : 0; if (Array.isArray(v)) return v.join(', ');
       const str = String(v), d = DRE.exec(str);
       if (d) return { d: Date.UTC(+d[1], +d[2] - 1, +d[3], +(d[4] || 0), +(d[5] || 0)) / DAY };
+      const e = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/.exec(str.trim());
+      if (e && +e[2] >= 1 && +e[2] <= 12 && +e[1] >= 1 && new Date(Date.UTC(+e[3], +e[2] - 1, +e[1])).getUTCMonth() === +e[2] - 1) return { d: Date.UTC(+e[3], +e[2] - 1, +e[1], +(e[4] || 0), +(e[5] || 0)) / DAY };
       return str.trim() !== '' && !isNaN(Number(str)) ? Number(str) : str;
     };
+    const colIdx = k => { const m = /^([A-Za-z]{1,2})\d*$/.exec(k); if (!m || !cols) return -1; let n = 0; m[1].toUpperCase().split('').forEach(ch => { n = n * 26 + ch.charCodeAt(0) - 64; }); return n - 1; };
+    const nameRef = k => { if (Object.prototype.hasOwnProperty.call(data, k)) return ref(k); const i = colIdx(k); return i >= 0 && cols[i] !== undefined ? ref(cols[i]) : ref(k); };
     const ymd = v => new Date(Math.round(v.d * DAY));
     const addM = (v, n) => { const dt = ymd(v), y = dt.getUTCFullYear(), mo = dt.getUTCMonth() + Math.trunc(n), last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate(); return { d: Date.UTC(y, mo, Math.min(dt.getUTCDate(), last), dt.getUTCHours(), dt.getUTCMinutes()) / DAY }; };
     const months = (a, b) => { const x = ymd(a), y = ymd(b); let n = (x.getUTCFullYear() - y.getUTCFullYear()) * 12 + x.getUTCMonth() - y.getUTCMonth(); if (n > 0 && x.getUTCDate() < y.getUTCDate()) n--; if (n < 0 && x.getUTCDate() > y.getUTCDate()) n++; return n; };
@@ -180,35 +185,55 @@ function calcVal(expr, data) {
       AVG: a => { const x = nums(a); return x.length ? x.reduce((s, v) => s + v, 0) / x.length : null; },
       IF: a => truthy(a[0]) ? (a[1] === undefined ? null : a[1]) : (a[2] === undefined ? null : a[2]),
       AND: a => a.every(truthy) ? 1 : 0, OR: a => a.some(truthy) ? 1 : 0, NOT: a => truthy(a[0]) ? 0 : 1,
+      NOW: () => FN.TODAY(),
+      DATEDIF: a => { if (a[0] == null || a[1] == null) return null; const u = String(a[2] == null ? 'd' : a[2]).toLowerCase(); if (u === 'd') return must(a[1]).d - must(a[0]).d; const n = months(must(a[1]), must(a[0])); return u === 'm' ? n : u === 'y' ? Math.trunc(n / 12) : (() => { throw 0; })(); },
+      EDATE: a => a[0] == null ? null : addM(must(a[0]), nn(a[1])),
+      EOMONTH: a => { if (a[0] == null) return null; const dt = ymd(must(a[0])); return { d: Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1 + Math.trunc(nn(a[1])), 0) / DAY }; },
+      YEAR: a => a[0] == null ? null : ymd(must(a[0])).getUTCFullYear(),
+      MONTH: a => a[0] == null ? null : ymd(must(a[0])).getUTCMonth() + 1,
+      DAY: a => a[0] == null ? null : ymd(must(a[0])).getUTCDate(),
+      INT: a => Math.floor(nn(a[0])), MOD: a => nn(a[0]) % nn(a[1]), POWER: a => Math.pow(nn(a[0]), nn(a[1])), SQRT: a => Math.sqrt(nn(a[0])),
+      ROUNDUP: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.ceil(nn(a[0]) * k) / k; },
+      ROUNDDOWN: a => { const k = Math.pow(10, a.length > 1 ? nn(a[1]) : 0); return Math.trunc(nn(a[0]) * k) / k; },
+      IFERROR: a => typeof a[0] === 'number' && !isFinite(a[0]) ? (a[1] === undefined ? null : a[1]) : a[0],
+      ISBLANK: a => a[0] == null || a[0] === '' ? 1 : 0,
+      LEN: a => FN.CONCAT([a[0]]).length, UPPER: a => FN.CONCAT([a[0]]).toUpperCase(), LOWER: a => FN.CONCAT([a[0]]).toLowerCase(), TRIM: a => FN.CONCAT([a[0]]).trim(),
+      LEFT: a => FN.CONCAT([a[0]]).slice(0, a.length > 1 ? nn(a[1]) : 1), RIGHT: a => { const s = FN.CONCAT([a[0]]), n = a.length > 1 ? nn(a[1]) : 1; return n <= 0 ? '' : s.slice(-n); },
       CONCAT: a => a.map(v => isD(v) ? toStr(v) : v == null ? '' : String(v)).join('')
     };
     const toStr = v => { const dt = ymd(v), z = n => (n < 10 ? '0' : '') + n, base = dt.getUTCFullYear() + '-' + z(dt.getUTCMonth() + 1) + '-' + z(dt.getUTCDate()); return Number.isInteger(v.d) ? base : base + 'T' + z(dt.getUTCHours()) + ':' + z(dt.getUTCMinutes()); };
     const peek = v => T[p] && T[p].t === 'o' && T[p].v === v;
     const expr0 = () => {
-      let a = add();
-      while (T[p] && T[p].t === 'o' && ['<', '>', '<=', '>=', '=', '==', '!=', '<>'].indexOf(T[p].v) >= 0) { const op = T[p++].v; a = cmp(op, a, add()); }
+      let a = cat();
+      while (T[p] && T[p].t === 'o' && ['<', '>', '<=', '>=', '=', '==', '!=', '<>'].indexOf(T[p].v) >= 0) { const op = T[p++].v; a = cmp(op, a, cat()); }
       return a;
     };
+    const cat = () => { let a = add(); while (peek('&')) { p++; const b = add(); a = FN.CONCAT([a, b]); } return a; };
     const add = () => { let a = mul(); while (peek('+') || peek('-')) { const op = T[p++].v; a = arith(op, a, mul()); } return a; };
-    const mul = () => { let a = un(); while (peek('*') || peek('/') || peek('%')) { const op = T[p++].v; a = arith(op, a, un()); } return a; };
+    const mul = () => { let a = pw(); while (peek('*') || peek('/') || peek('%')) { const op = T[p++].v; a = arith(op, a, pw()); } return a; };
+    const pw = () => { let a = un(); while (peek('^')) { p++; const b = un(); a = a == null || b == null ? null : Math.pow(nn(a), nn(b)); } return a; };
     const un = () => { if (peek('-')) { p++; const v = un(); return v == null ? null : -nn(v); } if (peek('+')) { p++; return un(); } return prim(); };
     const prim = () => {
       const k = T[p++]; if (!k) throw 0;
-      if (k.t === 'n' || k.t === 's') return k.v;
+      if (k.t === 'n') return k.v;
+      if (k.t === 's') { const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(k.v); return dm ? { d: Date.UTC(+dm[1], +dm[2] - 1, +dm[3]) / DAY } : k.v; }
       if (k.t === 'r') return ref(k.v);
       if (k.t === 'o' && k.v === '(') { const v = expr0(); if (!peek(')')) throw 0; p++; return v; }
       if (k.t === 'i') {
         if (peek('(')) {
           p++; const args = [];
           if (peek(')')) p++; else { for (;;) { args.push(expr0()); if (peek(',')) { p++; continue; } if (peek(')')) { p++; break; } throw 0; } }
-          const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args);
+          const f = FN[k.v.toUpperCase()]; if (!f) throw 0; return f(args.reduce((acc, x) => acc.concat(Array.isArray(x) ? x : [x]), []));
         }
-        return ref(k.v);
+        const U = k.v.toUpperCase();
+        if ((U === 'TRUE' || U === 'FALSE') && !(k.v in data)) return U === 'TRUE' ? 1 : 0;
+        if (peek(':')) { p++; const e2 = T[p++]; if (!e2 || e2.t !== 'i') throw 0; const a = colIdx(k.v), b = colIdx(e2.v); if (a < 0 || b < 0 || !cols) throw 0; const out = []; for (let x = Math.min(a, b); x <= Math.max(a, b); x++) if (cols[x] !== undefined) out.push(ref(cols[x])); return out; }
+        return nameRef(k.v);
       }
       throw 0;
     };
     let r = expr0(); if (p < T.length) return '';
-    if (r == null) return ''; if (isD(r)) return toStr(r); if (typeof r === 'string') return r;
+    if (r == null || Array.isArray(r)) return ''; if (isD(r)) return toStr(r); if (typeof r === 'string') return r;
     return isFinite(r) ? Math.round(r * 100) / 100 : '';
   } catch (e) { return ''; }
 }
@@ -217,7 +242,7 @@ const vf = sc => sc.fields.filter(f => !f.hidden);
 const canR = (sc, r) => (sc.rights || '').includes(r);
 const blank = f => f.type === 'checkbox' ? false : (f.type === 'multiselect' || f.type === 'file') ? [] : '';
 const blankDraft = sc => Object.fromEntries(sc.fields.map(f => [f.key, blank(f)]));
-function recalc(sc, d) { sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d); }); }
+function recalc(sc, d) { const ck = sc.fields.map(f => f.key); sc.fields.forEach(f => { if (f.type === 'calc') d[f.key] = calcVal(f.calc, d, ck); }); }
 const isEmpty = v => v === '' || v == null || (Array.isArray(v) && !v.length);
 function fieldError(sc, f, d) {
   if (f.showIf && !cond(f.showIf, d)) return '';
@@ -511,6 +536,7 @@ async function refresh() {
 
 /* ----------------------------- login ----------------------------- */
 function renderLogin(msg) {
+  hideSplash();
   closeSheet(true);
   $('#app').innerHTML = `<div class="login"><form class="box glass" id="loginForm" autocomplete="on">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px"><div class="logo">🧭</div>
@@ -551,6 +577,7 @@ function navItems() {
   return items;
 }
 function renderApp() {
+  hideSplash();
   if (!S.user || !S.token) { renderLogin(); return; }
   const items = navItems(), isAdmin = S.user.role === 'admin';
   $('#app').innerHTML = `<div class="shell">
@@ -920,34 +947,40 @@ function openTabBuilder(tabName) {
   const rows = edit ? edit.fields.map(f => ({ orig: f.key, label: f.label, ar: f.ar || '', type: f.type, req: !!f.req, readonly: !!f.readonly, hidden: !!f.hidden, options: f.lookup ? '' : (f.options || []).join(', '), calc: f.calc || '', showIf: f.showIf || '', reqIf: f.reqIf || '', lookup: f.lookup || '', maxMB: f.maxMB ?? '', maxFiles: f.maxFiles ?? '', min: f.min ?? '', max: f.max ?? '' })) : [newRow()];
   const TYPES = Object.keys(T_TYPES.en);
   const QOPS = {
-    days: [L('Days between two dates', 'عدد الأيام بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DAYS(${b}, ${a})`],
-    months: [L('Months between two dates', 'عدد الشهور بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `MONTHS(${b}, ${a})`],
-    years: [L('Years between two dates (age)', 'عدد السنين بين تاريخين (العمر)'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `YEARS(${b}, ${a})`],
+    days: [L('Days between two dates', 'عدد الأيام بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "d")`],
+    months: [L('Months between two dates', 'عدد الشهور بين تاريخين'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "m")`],
+    years: [L('Years between two dates (age)', 'عدد السنين بين تاريخين (العمر)'), L('From', 'من تاريخ'), L('To', 'إلى تاريخ'), (a, b) => `DATEDIF(${a}, ${b}, "y")`],
     adddays: [L('Add days to a date', 'إضافة أيام لتاريخ'), L('Date', 'التاريخ'), L('Days', 'عدد الأيام'), (a, b) => `ADDDAYS(${a}, ${b})`],
-    addmonths: [L('Add months to a date', 'إضافة شهور لتاريخ'), L('Date', 'التاريخ'), L('Months', 'عدد الشهور'), (a, b) => `ADDMONTHS(${a}, ${b})`],
+    addmonths: [L('Add months to a date', 'إضافة شهور لتاريخ'), L('Date', 'التاريخ'), L('Months', 'عدد الشهور'), (a, b) => `EDATE(${a}, ${b})`],
     add: [L('Add (first + second)', 'جمع (الأول + الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} + ${b}`],
     sub: [L('Subtract (first − second)', 'طرح (الأول − الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} - ${b}`],
     mul: [L('Multiply (first × second)', 'ضرب (الأول × الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} * ${b}`],
     div: [L('Divide (first ÷ second)', 'قسمة (الأول ÷ الثاني)'), L('First', 'الأول'), L('Second', 'الثاني'), (a, b) => `${a} / ${b}`],
     pct: [L('Percentage (first × second%)', 'نسبة مئوية (الأول × الثاني%)'), L('Amount', 'المبلغ'), L('Percent', 'النسبة'), (a, b) => `${a} * ${b} / 100`]
   };
-  const FNS = [['DAYS', L('Days between (end, start)', 'أيام بين تاريخين (النهاية، البداية)')], ['MONTHS', L('Months between (end, start)', 'شهور بين تاريخين')], ['YEARS', L('Years between (end, start)', 'سنين بين تاريخين')], ['ADDDAYS', L('Add days (date, n)', 'إضافة أيام (التاريخ، عدد)')], ['ADDMONTHS', L('Add months (date, n)', 'إضافة شهور (التاريخ، عدد)')], ['TODAY', L('Today', 'تاريخ اليوم')], ['IF', L('If (condition, yes, no)', 'لو (الشرط، نعم، لا)')], ['ROUND', L('Round (x, digits)', 'تقريب (الرقم، عدد الخانات)')], ['MAX', L('Max', 'أكبر قيمة')], ['MIN', L('Min', 'أصغر قيمة')], ['SUM', L('Sum', 'مجموع')], ['AVG', L('Average', 'متوسط')], ['ABS', L('Absolute value', 'القيمة المطلقة')], ['CONCAT', L('Join text', 'دمج نصوص')]];
+  const FNS = [['DATEDIF', L('DATEDIF (start, end, "d"/"m"/"y")', 'DATEDIF فرق تاريخين (البداية، النهاية، "d"/"m"/"y")')], ['DAYS', L('DAYS (end, start)', 'DAYS أيام بين تاريخين (النهاية، البداية)')], ['TODAY', L('TODAY', 'TODAY تاريخ اليوم')], ['EDATE', L('EDATE (date, months)', 'EDATE إضافة شهور (التاريخ، عدد)')], ['ADDDAYS', L('ADDDAYS (date, days)', 'ADDDAYS إضافة أيام (التاريخ، عدد)')], ['EOMONTH', L('EOMONTH (date, months)', 'EOMONTH آخر يوم في الشهر')], ['YEAR', L('YEAR', 'YEAR السنة')], ['MONTH', L('MONTH', 'MONTH الشهر')], ['DAY', L('DAY', 'DAY اليوم')], ['IF', L('IF (test, yes, no)', 'IF لو (الشرط، نعم، لا)')], ['IFERROR', L('IFERROR (x, instead)', 'IFERROR لو في خطأ')], ['AND', 'AND'], ['OR', 'OR'], ['SUM', L('SUM', 'SUM مجموع')], ['AVG', L('AVG (average)', 'AVG متوسط')], ['MIN', 'MIN'], ['MAX', 'MAX'], ['ROUND', L('ROUND (x, digits)', 'ROUND تقريب')], ['ROUNDUP', 'ROUNDUP'], ['ROUNDDOWN', 'ROUNDDOWN'], ['INT', 'INT'], ['MOD', L('MOD (x, y)', 'MOD باقي القسمة')], ['ABS', 'ABS'], ['CONCAT', L('CONCAT (join text)', 'CONCAT دمج نصوص')], ['LEFT', 'LEFT'], ['RIGHT', 'RIGHT'], ['LEN', 'LEN'], ['UPPER', 'UPPER'], ['LOWER', 'LOWER'], ['TRIM', 'TRIM']];
   const o = openSheet(`<div class="hd"><h3>${esc(edit ? L('Edit tab', 'تعديل الصفحة') : t('createTab'))}</h3><button class="btn icon ghost" data-b="x">${ic('x')}</button></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:8px"><div class="fld"><label class="lab">${esc(t('tabName'))}</label><input class="inp" id="b_name" value="${esc(edit ? edit.label : '')}"></div><div class="fld"><label class="lab">${esc(t('labelAr'))}</label><input class="inp" id="b_ar" value="${esc(edit ? edit.ar || '' : '')}"></div><div class="fld"><label class="lab">${esc(t('icon'))}</label><input class="inp" id="b_icon" value="${esc(edit ? edit.icon || '📄' : '📄')}" style="text-align:center"></div></div>
-    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
+    ${edit ? `<p class="muted" style="font-size:12px;margin:0 0 10px">${esc(L('Formulas work like Excel: start with =, use column names, [Column Name], or column letters like D2 (the 4th column). Renaming a column updates your formulas automatically and keeps its old data. "Hide" removes a column from the screens without deleting its data. New columns are added at the end.', 'تغيير اسم عمود بيحدّث المعادلات تلقائياً وبيحافظ على بياناته القديمة. "إخفاء" بيشيل العمود من الشاشات من غير ما يمسح بياناته. الأعمدة الجديدة بتتضاف في الآخر.'))}</p>` : ''}
     <label class="lab">${esc(t('fields'))}</label><div id="b_rows"></div><button class="btn" data-b="add" style="width:100%;margin:6px 0 14px">${ic('plus')} ${esc(t('addField'))}</button><button class="btn primary" data-b="save" style="width:100%">${ic('check')} ${esc(t('save'))}</button>`, { wide: true });
 
   const prevCols = i => rows.slice(0, i).filter(r => r.label.trim() && r.type !== 'file').map(r => r.label.trim());
   const fillCols = sel => { const cur = sel.value, i = +sel.closest('[data-i]').dataset.i; sel.innerHTML = `<option value="">${esc(sel.dataset.ph || '—')}</option>${sel.dataset.today ? `<option value="__today">📅 ${esc(L('Today', 'اليوم'))}</option>` : ''}${prevCols(i).map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}`; sel.value = cur; };
-  const sample = () => { const d = {}; rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; d[key] = r.type === 'date' ? new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10) : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d) : r.type === 'checkbox' ? 1 : 'abc'; }); return d; };
-  const prevCalc = i => { const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; } const v = calcVal(r.calc, sample()); el.style.color = v === '' ? 'var(--err)' : 'var(--ok)'; el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v; };
+  const sample = mode => { const d = {}, ck = rows.filter(r => r.label.trim()).map(r => r.label.trim()); rows.forEach((r, k) => { const key = r.label.trim(); if (!key) return; const txt = r.type === 'text' || r.type === 'longtext' || r.type === 'phone' || r.type === 'email' || r.type === 'select'; const dt = new Date(Date.UTC(2026, 0, 1 + k * 10)).toISOString().slice(0, 10); d[key] = r.type === 'date' ? dt : r.type === 'datetime' ? new Date(Date.UTC(2026, 0, 1 + k * 10, 9)).toISOString().slice(0, 16) : r.type === 'number' ? 10 + k : r.type === 'calc' ? calcVal(r.calc, d, ck) : r.type === 'checkbox' ? 1 : txt && mode === 'date' ? dt : txt && mode === 'num' ? 10 + k : 'abc'; }); return d; };
+  const prevCalc = i => {
+    const el = $(`[data-i="${i}"] [data-prev]`, o); if (!el) return; const r = rows[i]; if (!String(r.calc || '').trim()) { el.textContent = ''; return; }
+    const ck = rows.filter(x => x.label.trim()).map(x => x.label.trim()); let v = '', used = '';
+    for (const mode of ['', 'date', 'num']) { v = calcVal(r.calc, sample(mode), ck); if (v !== '') { used = mode; break; } }
+    el.style.color = v === '' ? 'var(--err)' : 'var(--ok)';
+    el.textContent = v === '' ? L('⚠ Formula not understood or incomplete — check it', '⚠ الصيغة غير مفهومة أو ناقصة — راجعها') : L('✓ Example result: ', '✓ مثال للنتيجة: ') + v + (used ? L('  (works if the text columns hold ' + (used === 'date' ? 'dates' : 'numbers') + ')', '  (شغالة لو أعمدة النص فيها ' + (used === 'date' ? 'تواريخ' : 'أرقام') + ')') : '');
+  };
   const ins = (inp, txt, back = 0) => { const a = inp.selectionStart ?? inp.value.length, z = inp.selectionEnd ?? a; inp.value = inp.value.slice(0, a) + txt + inp.value.slice(z); const pos = a + txt.length - back; inp.focus(); inp.setSelectionRange(pos, pos); inp.dispatchEvent(new Event('input', { bubbles: true })); };
   const calcBox = (r, i) => `<div style="margin-top:8px;padding:10px;border-radius:10px;border:1px dashed var(--line,#475569)">
-      <input class="inp" data-p="calc" dir="ltr" placeholder="{Qty}*{Price}   |   DAYS({End}, {Start})" value="${esc(r.calc || '')}">
+      <input class="inp" data-p="calc" dir="ltr" placeholder="=Qty*Price    |    =D2-E2    |    =DATEDIF(Start, End, &quot;d&quot;)    |    =[Total Fee]*2" value="${esc(r.calc || '')}">
       <div data-prev class="muted" style="font-size:12px;margin:6px 0"></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
         <select class="inp" data-cols data-ins style="flex:1;min-width:130px" data-ph="${esc(L('＋ Column…', '＋ أدخل عمود…'))}"></select>
-        ${[['+', '+'], ['-', '−'], ['*', '×'], ['/', '÷'], ['(', '('], [')', ')']].map(([v, s]) => `<button type="button" class="btn" data-op="${v}" style="min-width:38px">${s}</button>`).join('')}
+        ${[['+', '+'], ['-', '−'], ['*', '×'], ['/', '÷'], ['^', '^'], ['&', '&'], ['(', '('], [')', ')']].map(([v, s]) => `<button type="button" class="btn" data-op="${v}" style="min-width:38px">${s}</button>`).join('')}
         <select class="inp" data-fn style="flex:1;min-width:130px"><option value="">${esc(L('＋ Function…', '＋ دالة…'))}</option>${FNS.map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join('')}</select>
       </div>
       <details style="margin-top:8px"><summary style="cursor:pointer;font-size:13px;font-weight:600">${esc(L('⚡ Quick helper — no typing', '⚡ مساعد سريع — من غير كتابة'))}</summary>
@@ -1029,6 +1062,13 @@ window.addEventListener('online', () => { S.online = true; renderStatus(); flush
 window.addEventListener('offline', () => { S.online = false; renderStatus(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.token) { flush(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ----------------------------- splash screen (index.html #splash) ----------------------------- */
+function hideSplash() {
+  const sp = document.getElementById('splash'); if (!sp || sp._h) return; sp._h = 1;
+  setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 700); }, Math.max(0, 600 - (Date.now() - (window.__t0 || 0))));
+}
+setTimeout(hideSplash, 8000); // safety net: never leave the splash up forever
 
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
