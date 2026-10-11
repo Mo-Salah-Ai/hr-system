@@ -4,7 +4,7 @@
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxSCrueRvnltGeoZEbJlGBHtdUjIyGxO5nXK20SGUEIbJS1A_sKZiuMCagPuI3ANEldig/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbxwcwPeU0Yyov_7ijEEuzOwc3QpFf2R5vd4O7-bb51yheahTp3P88kihYhgjpBDOCK6bA/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
@@ -214,7 +214,7 @@ async function pullTab(tab) {
   for (const id of r.deleted) { const cur = m.get(id); if (cur && !cur._pending) await delLocal(tab, id); }
   S.lastSync[tab] = r.serverTime - 2000; await meta.set('lastSync', S.lastSync);
 }
-async function pullAll() { await Promise.all(S.tabs.map(tb => pullTab(tb.name).catch(e => { if (e.code !== 'network') console.warn(e); }))); }
+async function pullAll() { await Promise.all(S.tabs.map(tb => pullTab(tb.name).catch(e => { if (e.code !== 'network' && e.code !== 'auth') { console.warn(e); toast(`${tb.label}: ${e.message}`, 'err', { ms: 8000 }); } }))); }
 
 /* ----------------------------- queue / sync engine ----------------------------- */
 async function enqueue(op) {
