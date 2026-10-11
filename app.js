@@ -833,7 +833,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 /* ----------------------------- boot ----------------------------- */
 async function boot() {
   S.lang = localStorage.getItem('hr_lang') || (navigator.language || '').startsWith('ar') ? (localStorage.getItem('hr_lang') || 'ar') : 'en';
-  S.theme = localStorage.getItem('hr_theme') || 'dark'; applyTheme(); applyLang();
+  S.theme = localStorage.getItem('hr_theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); applyTheme(); applyLang();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   try { await DB.open(); } catch (e) { $('#app').innerHTML = '<p style="padding:30px">IndexedDB unavailable in this browser mode.</p>'; return; }
   S.token = localStorage.getItem('hr_token');
