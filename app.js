@@ -44,7 +44,9 @@ const I18N = {
     readOnly: 'View only', theme: 'Theme', language: 'Language', brute: 'Brute-force alert', locked: 'Locked', activity24: 'Activity — last 24 h', recent: 'Recent activity', noAlerts: 'No open alerts',
     newRecord: 'New record', total: 'total', rows: 'rows', columns: 'Columns', icon: 'Icon', selectUser: 'Pick a user', allUsers: 'All', allTabs: 'All tabs', allActions: 'All actions',
     tabCreated: 'Tab created — it is live for everyone', userSaved: 'User saved', pw: 'Password (min 8 chars)', pwKeep: 'Leave empty to keep current', status: 'Status', switchedChat: 'Chat entry',
-    permsChanged: 'Your permissions changed — reloading', saveFail: 'Could not save', confirmDel: 'Delete this record?', openFile: 'Open', fileOffline: 'File is stored on this device until you are online', mic: 'Voice input'
+    permsChanged: 'Your permissions changed — reloading', saveFail: 'Could not save', confirmDel: 'Delete this record?', openFile: 'Open', fileOffline: 'File is stored on this device until you are online', mic: 'Voice input',
+    syncNow: 'Sync now', syncStatus: 'Sync status', syncVerified: (n, k) => `Verified: ${n} record(s) in ${k} page(s) match the server`, lastSyncAt: x => `Last successful sync: ${x}`,
+    nothingPending: 'Nothing is waiting to sync', discardConfirm: 'Discard this unsynced change?', syncFailed: 'Sync failed'
   },
   ar: {
     appName: 'نظام العمليات', tagline: 'منصة التوظيف والاستقدام', signIn: 'تسجيل الدخول', username: 'اسم المستخدم', password: 'كلمة المرور', login: 'دخول',
@@ -64,7 +66,9 @@ const I18N = {
     readOnly: 'للعرض فقط', theme: 'المظهر', language: 'اللغة', brute: 'تنبيه محاولات اختراق', locked: 'مقفل', activity24: 'النشاط — آخر ٢٤ ساعة', recent: 'آخر الأنشطة', noAlerts: 'لا توجد تنبيهات مفتوحة',
     newRecord: 'سجل جديد', total: 'إجمالي', rows: 'صف', columns: 'الأعمدة', icon: 'أيقونة', selectUser: 'اختر مستخدماً', allUsers: 'الكل', allTabs: 'كل الصفحات', allActions: 'كل الإجراءات',
     tabCreated: 'تم إنشاء الصفحة — أصبحت متاحة للجميع', userSaved: 'تم حفظ المستخدم', pw: 'كلمة المرور (٨ أحرف على الأقل)', pwKeep: 'اتركها فارغة للإبقاء على الحالية', status: 'الحالة', switchedChat: 'إدخال بالمحادثة',
-    permsChanged: 'تغيّرت صلاحياتك — جارٍ التحديث', saveFail: 'تعذّر الحفظ', confirmDel: 'حذف هذا السجل؟', openFile: 'فتح', fileOffline: 'الملف محفوظ على جهازك حتى تتصل بالإنترنت', mic: 'إدخال صوتي'
+    permsChanged: 'تغيّرت صلاحياتك — جارٍ التحديث', saveFail: 'تعذّر الحفظ', confirmDel: 'حذف هذا السجل؟', openFile: 'فتح', fileOffline: 'الملف محفوظ على جهازك حتى تتصل بالإنترنت', mic: 'إدخال صوتي',
+    syncNow: 'مزامنة الآن', syncStatus: 'حالة المزامنة', syncVerified: (n, k) => `تم التحقق: ${n} سجل في ${k} صفحة مطابق للسيرفر`, lastSyncAt: x => `آخر مزامنة ناجحة: ${x}`,
+    nothingPending: 'لا يوجد شيء في انتظار المزامنة', discardConfirm: 'تجاهل هذا التعديل غير المتزامن؟', syncFailed: 'فشلت المزامنة'
   }
 };
 const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', date: 'Date', datetime: 'Date & time', select: 'Dropdown', multiselect: 'Multi-select', checkbox: 'Checkbox', phone: 'Phone', email: 'Email', file: 'File upload', calc: 'Calculated' },
@@ -88,7 +92,8 @@ const ICONS = {
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
   grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>',
   chat: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', check: '<path d="M20 6 9 17l-5-5"/>', upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
-  spin: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'
+  spin: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>', lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  sync: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5"/>'
 };
 const ic = (n, c = '') => `<svg class="ic ${c}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[n] || ''}</svg>`;
 
@@ -247,7 +252,7 @@ async function flush() {
   if (flushing || !S.token || !navigator.onLine) return;
   const ops = (await DB.all('queue')).sort((a, b) => a.qid - b.qid);
   S.pending = ops.length; if (!ops.length) { renderStatus(); return; }
-  flushing = true; S.syncing = true; renderStatus();
+  flushing = true; S.syncing = true; S.syncError = null; renderStatus();
   try {
     for (const op of ops) await uploadPendingFiles(op);
     const res = await api('sync', { ops: ops.map(({ qid, ...o }) => o) });
@@ -264,8 +269,8 @@ async function flush() {
         await pullTab(op.tab).catch(() => {}); await dropLocalPending(op.tab, op.id);
       }
     }
-  } catch (e) { if (e.code !== 'network' && e.code !== 'auth') toast(e.message, 'err'); }
-  finally { flushing = false; S.syncing = false; await refreshPending(); if (S.pending && navigator.onLine && S.online && S.token) setTimeout(flush, 1500); renderList(); }
+  } catch (e) { S.syncError = e.code === 'network' ? t('networkErr') : e.message; if (e.code !== 'network' && e.code !== 'auth') toast(e.message, 'err'); }
+  finally { flushing = false; S.syncing = false; await refreshPending(); if (!S.syncError && !S.pending) S.lastOk = Date.now(); if (S.pending && navigator.onLine && S.online && S.token) setTimeout(flush, 1500); renderList(); }
 }
 async function dropLocalPending(tab, id) { const r = dataOf(tab).get(id); if (r && r._pending && !(await DB.all('queue')).some(o => o.tab === tab && o.id === id)) { if (r._srv) { await putLocal(tab, mkServerRec({ _id: id, ...r._srv, _updated: r._updated })); } else await delLocal(tab, id); } }
 async function uploadPendingFiles(op) {
@@ -283,6 +288,48 @@ async function uploadPendingFiles(op) {
   }
   if (dirty && op.qid) await DB.put('queue', op);
 }
+let manualSync = false;
+function setSyncBtn(on) { const b = $('#syncBtn'); if (!b) return; b.disabled = on; b.firstElementChild.classList.toggle('spin', on); }
+async function syncNow() {
+  if (manualSync || !S.token) return;
+  if (!navigator.onLine) { toast(t('offlineN', S.pending), 'warn'); return; }
+  manualSync = true; setSyncBtn(true); closeSheet(true);
+  try {
+    while (flushing) await sleep(200);
+    await flush(); while (flushing) await sleep(200);
+    S.syncing = true; renderStatus();
+    S.tabs.forEach(tb => { S.lastSync[tb.name] = 0; });                    // full pull = verify local copy against the server
+    const failed = [];
+    await Promise.all(S.tabs.map(async tb => { try { await pullTab(tb.name); } catch (e) { failed.push(`${tb.label}: ${e.code === 'network' ? t('networkErr') : e.message}`); } }));
+    await refreshPending();
+    const count = S.tabs.reduce((n, tb) => n + dataOf(tb.name).size, 0);
+    if (failed.length) toast(`${t('syncFailed')} — ${failed[0]}`, 'err', { ms: 7000 });
+    else if (S.pending) toast(`${t('pendingN', S.pending)}${S.syncError ? ' — ' + S.syncError : ''}`, 'warn', { ms: 6000 });
+    else { S.lastOk = Date.now(); toast(t('syncVerified', count, S.tabs.length), 'ok'); }
+  } catch (e) { toast(`${t('syncFailed')} — ${e.message}`, 'err', { ms: 6000 }); }
+  finally { manualSync = false; S.syncing = false; setSyncBtn(false); renderStatus(); renderList(); }
+}
+async function openSyncInfo() {
+  const ops = (await DB.all('queue')).sort((a, b) => a.qid - b.qid), s = statusInfo();
+  const label = op => { const sc = schemaOf(op.tab), rec = dataOf(op.tab).get(op.id), f = sc && vf(sc)[0]; return (rec && f ? displayVal(f, rec[f.key]) : '') || String(op.id).slice(0, 8); };
+  const o = openSheet(`<div class="hd"><h3>${ic('sync')} ${esc(t('syncStatus'))}</h3><button class="btn icon ghost" data-s="x">${ic('x')}</button></div>
+    <div class="card" style="margin-bottom:12px"><span class="pill ${s.c}"><span class="d"></span>${esc(s.txt)}</span><div class="muted" style="margin-top:8px;font-size:13px">${esc(t('lastSyncAt', S.lastOk ? fullTime(S.lastOk) : '—'))}</div>${S.syncError ? `<div style="margin-top:6px;color:var(--err);font-size:13px">${esc(S.syncError)}</div>` : ''}</div>
+    ${ops.length ? ops.map(op => `<div class="urow"><span class="badge ${esc(op.type)}">${esc(op.type)}</span><div style="flex:1;min-width:0"><b>${esc(label(op))}</b><div class="muted" style="font-size:12px">${esc(op.tab)} · ${esc(relTime(op.ts))}</div></div><button class="btn icon danger" data-s="drop" data-q="${op.qid}">${ic('trash')}</button></div>`).join('') : `<div class="muted" style="padding:6px 0 12px">${esc(t('nothingPending'))}</div>`}
+    <button class="btn primary" data-s="sync" style="width:100%;margin-top:14px">${ic('sync')} ${esc(t('syncNow'))}</button>`);
+  o.addEventListener('click', async e => {
+    const b = e.target.closest('[data-s]'); if (!b) return;
+    if (b.dataset.s === 'x') return closeSheet();
+    if (b.dataset.s === 'sync') return syncNow();
+    if (b.dataset.s === 'drop') {
+      if (!await confirmDlg(t('discardConfirm'))) return;
+      const op = (await DB.all('queue')).find(x => x.qid === +b.dataset.q); if (!op) return;
+      await DB.del('queue', op.qid); await dropLocalPending(op.tab, op.id);
+      if (op.type === 'delete') await pullTab(op.tab).catch(() => {});
+      await refreshPending(); renderList(); openSyncInfo();
+    }
+  });
+}
+
 function showConflict(op, r) {
   const sc = schemaOf(op.tab); if (!sc) return;
   const rows = r.conflicts.map(c => { const f = sc.fields.find(x => x.key === c.field); return `<div class="card" style="margin-bottom:10px"><b>${esc(fl(f))}</b><div class="muted" style="font-size:13px;margin-top:6px">${esc(t('keepMine'))}: <b style="color:var(--text)">${esc(displayVal(f, c.mine) || '—')}</b></div><div class="muted" style="font-size:13px">${esc(t('keepTheirs'))}: <b style="color:var(--text)">${esc(displayVal(f, c.theirs) || '—')}</b></div></div>`; }).join('');
@@ -423,7 +470,8 @@ function renderApp() {
       ${items.map(i => `<button class="navi ${i.on ? 'on' : ''}" data-act="nav" data-id="${esc(i.id)}"><span class="em">${i.em}</span><span>${esc(i.label)}</span></button>`).join('')}</aside>
     <div class="main-col"><header class="topbar glass">
       <div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="hdTitle"></div><div class="muted" style="font-size:12px">${esc(S.user.name || S.user.username)}</div></div>
-      <span id="statusPill" class="pill"></span>
+      <span id="statusPill" class="pill" data-act="syncinfo" style="cursor:pointer"></span>
+      <button class="btn icon ghost" id="syncBtn" data-act="sync" title="${esc(t('syncNow'))}">${ic('sync')}</button>
       ${isAdmin ? `<button class="btn icon ghost" id="bell" data-act="alerts" style="position:relative">${ic('bell')}<span id="bellN"></span></button>` : ''}
       <button class="btn icon ghost" data-act="theme" title="${esc(t('theme'))}">${ic(S.theme === 'dark' ? 'sun' : 'moon')}</button>
       <button class="btn icon ghost" data-act="lang" title="${esc(t('language'))}">${ic('globe')}<b style="font-size:12px">${S.lang === 'ar' ? 'EN' : 'ع'}</b></button>
@@ -810,6 +858,7 @@ document.addEventListener('click', async e => {
   const a = el.dataset.act, id = el.dataset.id;
   if (el.classList.contains('card') && el.dataset.sw) return;
   switch (a) {
+    case 'sync': syncNow(); break; case 'syncinfo': openSyncInfo(); break;
     case 'theme': toggleTheme(); break; case 'lang': toggleLang(); break; case 'logout': logout(); break;
     case 'nav': S.view = id === 'admin' ? { ...S.view, kind: 'admin' } : { ...S.view, kind: 'tab', tab: id.slice(4) }; S.search = ''; S.limit = CONFIG.PAGE; renderApp(); break;
     case 'add': { const sc = schemaOf(S.view.tab); if (!sc) break; if (innerWidth < 768) openChat(sc.name); else openNewFormWith(sc.name, blankDraft(sc), uid()); break; }
