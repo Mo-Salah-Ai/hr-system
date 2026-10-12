@@ -73,7 +73,7 @@ const I18N = {
 };
 const T_TYPES = { en: { text: 'Text', longtext: 'Long text', number: 'Number', date: 'Date', datetime: 'Date & time', select: 'Dropdown', multiselect: 'Multi-select', checkbox: 'Checkbox', phone: 'Phone', email: 'Email', file: 'File upload', calc: 'Calculated' },
   ar: { text: 'نص', longtext: 'نص طويل', number: 'رقم', date: 'تاريخ', datetime: 'تاريخ ووقت', select: 'قائمة', multiselect: 'اختيار متعدد', checkbox: 'مربع اختيار', phone: 'هاتف', email: 'بريد', file: 'رفع ملف', calc: 'محسوب' } };
-const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create'];
+const ACTIONS = ['login', 'logout', 'login_fail', 'login_blocked', 'lockout', 'security_alert', 'create', 'update', 'delete', 'conflict', 'upload', 'download', 'user_create', 'user_update', 'user_unlock', 'tab_create', 'tab_update'];
 
 const S = { lang: 'en', theme: 'dark', token: null, user: null, tabs: [], data: {}, lastSync: {}, view: { kind: 'dash', tab: null, admin: 'overview' },
   online: navigator.onLine, syncing: false, pending: 0, search: '', filter: {}, layout: null, alerts: 0, limit: CONFIG.PAGE, auditQ: { page: 0, filters: {} }, adminTimer: null };
@@ -792,22 +792,235 @@ async function admOverview() {
   };
   await load(); S.adminTimer = setInterval(load, CONFIG.ADMIN_POLL_MS);
 }
+/* ----------------------------- audit log: timeline view (UI only — API/filters/paging unchanged) ----------------------------- */
+Object.assign(I18N.en, {
+  audSub: 'Every sign-in, edit and security event — newest first', audToday: 'Today', audYesterday: 'Yesterday', audOpenRec: 'Open record', audOpenTab: 'Open page', audOpenUser: 'Open user',
+  audOpenTabs: 'Page settings', audMissing: 'Record no longer exists', audNoUser: 'User no longer exists', audNoRows: 'No events match these filters', audFilters: 'Filters', audEvents: 'events',
+  audEmpty: '(empty)', audFile: 'File', audSize: 'Size', audRenamed: 'Renamed', audAttempt: 'Attempt', audFailsTotal: 'Wrong attempts', audLocks: 'Lockouts', audDevice: 'Device',
+  audAdded: 'Added', audEdited: 'Edited', audDeleted: 'Deleted', audSecurity: 'Security', audThisPage: 'on this page', audClear: 'Clear filters', audPwChanged: 'Password changed',
+  a_login: 'Signed in', a_logout: 'Signed out', a_login_fail: 'Failed sign-in', a_login_blocked: 'Blocked sign-in', a_lockout: 'Account locked', a_security_alert: 'Security alert',
+  a_create: 'Record added', a_update: 'Record edited', a_delete: 'Record deleted', a_conflict: 'Edit conflict', a_upload: 'File uploaded', a_download: 'File opened',
+  a_user_create: 'User created', a_user_update: 'User updated', a_user_unlock: 'User unlocked', a_tab_create: 'Page created', a_tab_update: 'Page edited'
+});
+Object.assign(I18N.ar, {
+  audSub: 'كل عمليات الدخول والتعديل والأحداث الأمنية — الأحدث أولاً', audToday: 'اليوم', audYesterday: 'أمس', audOpenRec: 'فتح السجل', audOpenTab: 'فتح الصفحة', audOpenUser: 'فتح المستخدم',
+  audOpenTabs: 'إعدادات الصفحة', audMissing: 'السجل لم يعد موجوداً', audNoUser: 'المستخدم لم يعد موجوداً', audNoRows: 'لا توجد أحداث مطابقة', audFilters: 'تصفية', audEvents: 'حدث',
+  audEmpty: '(فارغ)', audFile: 'الملف', audSize: 'الحجم', audRenamed: 'إعادة تسمية', audAttempt: 'المحاولة', audFailsTotal: 'محاولات خاطئة', audLocks: 'مرات القفل', audDevice: 'الجهاز',
+  audAdded: 'إضافات', audEdited: 'تعديلات', audDeleted: 'حذف', audSecurity: 'أمني', audThisPage: 'في هذه الصفحة', audClear: 'مسح التصفية', audPwChanged: 'تغيير كلمة المرور',
+  a_login: 'تسجيل دخول', a_logout: 'تسجيل خروج', a_login_fail: 'محاولة دخول فاشلة', a_login_blocked: 'دخول محظور', a_lockout: 'قفل الحساب', a_security_alert: 'تنبيه أمني',
+  a_create: 'إضافة سجل', a_update: 'تعديل سجل', a_delete: 'حذف سجل', a_conflict: 'تعارض في التعديل', a_upload: 'رفع ملف', a_download: 'فتح ملف',
+  a_user_create: 'إنشاء مستخدم', a_user_update: 'تعديل مستخدم', a_user_unlock: 'فك قفل مستخدم', a_tab_create: 'إنشاء صفحة', a_tab_update: 'تعديل صفحة'
+});
+const AUD = {
+  login: ['🔑', 'var(--ok)'], logout: ['🚪', 'var(--muted)'], login_fail: ['⛔', 'var(--err)'], login_blocked: ['🚫', 'var(--err)'], lockout: ['🔒', 'var(--err)'], security_alert: ['🚨', 'var(--err)'],
+  create: ['✨', 'var(--ok)'], update: ['✏️', 'var(--accent)'], delete: ['🗑️', 'var(--err)'], conflict: ['⚠️', 'var(--warn)'], upload: ['📎', 'var(--accent2)'], download: ['📥', 'var(--accent2)'],
+  user_create: ['👤', 'var(--ok)'], user_update: ['🛠️', 'var(--accent)'], user_unlock: ['🔓', 'var(--ok)'], tab_create: ['🧩', 'var(--ok)'], tab_update: ['🧩', 'var(--accent)']
+};
+const AUD_SEC = ['login_fail', 'login_blocked', 'lockout', 'security_alert'];
+const AUD_QUICK = [['', '🗂️'], ['create', '✨'], ['update', '✏️'], ['delete', '🗑️'], ['upload', '📎'], ['login', '🔑'], ['login_fail', '⛔'], ['lockout', '🔒']];
+const audLbl = a => { const k = 'a_' + a; return (I18N[S.lang] || {})[k] ?? I18N.en[k] ?? a; };
+const audParse = s => { try { const j = JSON.parse(s); return j && typeof j === 'object' ? j : null; } catch (e) { return null; } };
+const audDev = s => { s = String(s || ''); if (!s) return ''; const b = /Edg\//.test(s) ? 'Edge' : /OPR\//.test(s) ? 'Opera' : /Chrome\//.test(s) ? 'Chrome' : /Firefox\//.test(s) ? 'Firefox' : /Safari\//.test(s) ? 'Safari' : '', o = /Windows/.test(s) ? 'Windows' : /Android/.test(s) ? 'Android' : /iPhone|iPad/.test(s) ? 'iOS' : /Mac OS/.test(s) ? 'macOS' : /Linux/.test(s) ? 'Linux' : ''; return [b, o].filter(Boolean).join(' · '); };
+function audVal(f, v) {
+  if (v === '' || v == null || (Array.isArray(v) && !v.length)) return `<i class="aud-empty">${esc(t('audEmpty'))}</i>`;
+  try {
+    if (f) return esc(displayVal(f, v));
+    if (Array.isArray(v)) return esc(v.map(x => x && typeof x === 'object' ? (x.name || JSON.stringify(x)) : x).join(', '));
+    return esc(typeof v === 'object' ? JSON.stringify(v) : String(v));
+  } catch (e) { return esc(String(v)); }
+}
+function audDay(ms) {
+  if (!ms) return '—';
+  const d = new Date(ms), n = new Date(), s = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(), diff = Math.round((s(n) - s(d)) / 86400000);
+  if (diff === 0) return t('audToday'); if (diff === 1) return t('audYesterday');
+  return d.toLocaleDateString(loc(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+function audRecTitle(a, d) {
+  const sc = schemaOf(a.tab); if (!sc) return '';
+  const f0 = vf(sc)[0]; if (!f0) return '';
+  const src = d && (d.data || d.before); let v = src ? src[f0.key] : undefined;
+  if ((v === undefined || v === '') && a.rowId) { const rec = dataOf(a.tab).get(String(a.rowId)); if (rec) v = rec[f0.key]; }
+  return isEmpty(v) ? '' : displayVal(f0, v);
+}
+function audBody(a, d, sc) {
+  if (!d) return '';
+  const A = String(a.action), kv = (k, v, cls) => `<span class="aud-kv ${cls || ''}"><small>${esc(k)}</small><b>${v}</b></span>`;
+  const fld = k => sc && sc.fields.find(x => x.key === k), flab = k => { const f = fld(k); return f ? fl(f) : k; };
+  const chips = (obj, cls, max) => {
+    const ks = Object.keys(obj || {}).filter(k => !isEmpty(obj[k]) && obj[k] !== false);
+    return ks.slice(0, max).map(k => kv(flab(k), audVal(fld(k), obj[k]), cls)).join('') + (ks.length > max ? `<span class="aud-more">+${ks.length - max}</span>` : '');
+  };
+  let h = '';
+  if (A === 'create') h = `<div class="aud-kvs">${chips(d.data, 'n', 5)}</div>`;
+  else if (A === 'delete') h = `<div class="aud-kvs">${chips(d.before, 'o', 5)}</div>`;
+  else if (A === 'update' && d.changes) {
+    const ks = Object.keys(d.changes);
+    h = `<div class="aud-df">${ks.slice(0, 5).map(k => { const c = d.changes[k] || []; return `<div class="aud-dr"><span class="aud-fk">${esc(flab(k))}</span><span class="aud-old">${audVal(fld(k), c[0])}</span><span class="aud-arr">→</span><span class="aud-new">${audVal(fld(k), c[1])}</span></div>`; }).join('')}${ks.length > 5 ? `<span class="aud-more">+${ks.length - 5}</span>` : ''}</div>`;
+  }
+  else if (A === 'conflict') h = `<div class="aud-kvs">${(d.fields || []).map(k => kv(t('conflictTitle'), esc(flab(k)), 'w')).join('')}</div>`;
+  else if (A === 'upload') h = `<div class="aud-kvs">${kv(t('audFile'), esc(d.name || ''))}${d.field ? kv(t('fields'), esc(flab(d.field))) : ''}${d.size ? kv(t('audSize'), esc(Math.max(1, Math.round(d.size / 1024)) + ' KB')) : ''}</div>`;
+  else if (A === 'download') h = `<div class="aud-kvs">${kv(t('audFile'), esc(d.name || ''))}</div>`;
+  else if (A === 'login_fail') h = `<div class="aud-kvs">${d.attempt != null ? kv(t('audAttempt'), esc(d.attempt)) : ''}${d.reason ? kv(t('status'), esc(d.reason)) : ''}</div>`;
+  else if (A === 'lockout' || A === 'security_alert') h = `<div class="aud-kvs">${d.lockCount != null ? kv(t('audLocks'), esc(d.lockCount)) : ''}${d.totalFails != null ? kv(t('audFailsTotal'), esc(d.totalFails)) : ''}</div>`;
+  else if (A === 'user_create' || A === 'user_update') h = `<div class="aud-kvs">${d.role ? kv(t('role'), esc(d.role)) : ''}${kv(t('permissions'), esc(d.role === 'admin' ? '*' : (d.perms || '—')))}${d.active === false ? kv(t('active'), 'off', 'o') : ''}${d.passwordChanged ? kv('🔑', esc(t('audPwChanged')), 'n') : ''}</div>`;
+  else if (A === 'tab_create') h = `<div class="aud-kvs">${kv(t('fields'), esc((d.fields || []).length))}</div>`;
+  else if (A === 'tab_update') h = `<div class="aud-kvs">${(d.renames || []).map(p => kv(t('audRenamed'), `${esc(p[0])} → ${esc(p[1])}`)).join('')}${(d.headers || []).length ? kv(t('fields'), esc(d.headers.length)) : ''}</div>`;
+  return h.replace(/<div class="aud-kvs"><\/div>/, '') ? `<div class="aud-body">${h}</div>` : '';
+}
+function audLink(a) {
+  const A = String(a.action), rid = String(a.rowId || ''), sc = a.tab ? schemaOf(a.tab) : null, out = [];
+  const go = (attrs, icon, label, ghost) => `<button type="button" class="aud-go${ghost ? ' ghost' : ''}" ${attrs}>${ic(icon)}<span>${esc(label)}</span></button>`;
+  const tabBtn = () => go(`data-act="nav" data-id="tab:${esc(a.tab)}"`, 'grid', t('audOpenTab'), true);
+  if (sc && ['create', 'update', 'conflict'].includes(A)) {
+    if (rid && dataOf(a.tab).has(rid)) out.push(go(`data-act="wopen" data-t="${esc(a.tab)}" data-id="${esc(rid)}"`, 'edit', t('audOpenRec')));
+    else if (rid) out.push(`<span class="aud-gone">🗑️ ${esc(t('audMissing'))}</span>`);
+    out.push(tabBtn());
+  } else if (sc && ['delete', 'upload', 'download'].includes(A)) out.push(tabBtn());
+  else if (A === 'user_create' || A === 'user_update' || A === 'user_unlock') { if (rid) out.push(go(`data-aud="user" data-id="${esc(rid)}"`, 'shield', t('audOpenUser'))); }
+  else if (AUD_SEC.includes(A) && a.user) out.push(go(`data-aud="user" data-id="${esc(a.user)}"`, 'shield', t('audOpenUser'), true));
+  else if ((A === 'tab_create' || A === 'tab_update') && sc) out.push(go(`data-aud="tab" data-id="${esc(a.tab)}"`, 'sliders', t('audOpenTabs')), tabBtn());
+  return out.length ? `<div class="aud-foot">${out.join('')}</div>` : '';
+}
+function audEvent(a, i) {
+  const A = String(a.action), m = AUD[A] || ['•', 'var(--muted)'], d = audParse(a.details), sc = a.tab ? schemaOf(a.tab) : null;
+  const rec = audRecTitle(a, d), dev = audDev(a.device), raw = String(a.details || '');
+  const tabChip = a.tab ? `<span class="aud-tab">${sc ? esc((sc.icon || '') + ' ' + tl(sc)) : esc(a.tab)}</span>` : '';
+  const det = raw && raw !== '{}' ? `<details class="aud-det"><summary>${ic('list')} ${esc(t('details'))}</summary><div class="aud-meta"><span>${esc(t('time'))}: <b>${esc(fullTime(a.ts))}</b></span>${a.rowId ? `<span>ID: <b dir="ltr">${esc(String(a.rowId))}</b></span>` : ''}${a.device ? `<span>${esc(t('audDevice'))}: <b dir="ltr">${esc(String(a.device).slice(0, 120))}</b></span>` : ''}</div><pre>${esc(prettyJson(raw))}</pre></details>` : '';
+  return `<div class="aud-ev" style="--c:${m[1]};animation-delay:${Math.min(i, 10) * 30}ms"><div class="aud-dot">${m[0]}</div><div class="aud-card">
+    <div class="aud-top"><b class="aud-act">${esc(audLbl(A))}</b>${tabChip}<span class="aud-time" title="${esc(fullTime(a.ts))}">${esc(hhmm(a.ts))} · ${esc(relTime(a.ts))}</span></div>
+    <div class="aud-who"><span class="aud-av">${esc(String(a.user || '?')[0].toUpperCase())}</span><b>${esc(a.user || '—')}</b>${rec ? `<span class="aud-rec">· <b>${esc(rec)}</b></span>` : ''}${dev ? `<span class="aud-dev">${esc(dev)}</span>` : ''}</div>
+    ${audBody(a, d, sc)}${det}${audLink(a)}</div></div>`;
+}
+function audCss() {
+  if (document.getElementById('audcss')) return;
+  const s = document.createElement('style'); s.id = 'audcss';
+  s.textContent = `
+.aud-hero{position:relative;overflow:hidden;border-radius:22px;padding:18px;margin-bottom:14px;border:1px solid var(--border);background:linear-gradient(135deg,rgba(56,189,248,.18),rgba(167,139,250,.18)),var(--surface);box-shadow:var(--shadow);animation:rise .4s both}
+.aud-hero::after{content:"";position:absolute;inset-inline-end:-50px;top:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,var(--accent),transparent 65%);opacity:.22;pointer-events:none}
+.aud-ht{display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:relative;z-index:1}
+.aud-hi{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:23px;flex:none;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 28px -6px var(--accent)}
+.aud-hi+div{flex:1 1 180px;min-width:0}.aud-hi+div b{display:block;font-size:20px;font-weight:800}.aud-hi+div span{font-size:13px;color:var(--muted)}
+.aud-total{margin-inline-start:auto;text-align:end}
+.aud-total b{display:block;font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.aud-total small{color:var(--muted);font-weight:700;font-size:11px}
+.aud-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:14px;position:relative;z-index:1}
+@media(max-width:560px){.aud-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.aud-stat{border-radius:14px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);min-width:0}
+.aud-stat small{display:block;color:var(--muted);font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aud-stat b{font-size:20px;font-variant-numeric:tabular-nums}
+.aud-bar{display:flex;gap:8px;margin-bottom:10px}
+.aud-search{position:relative;flex:1;min-width:0}
+.aud-search .ic{position:absolute;top:11px;inset-inline-start:12px;color:var(--muted)}
+.aud-search .inp{padding-inline-start:40px}
+.aud-chips{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.aud-chips::-webkit-scrollbar{display:none}
+.aud-chips .chip{flex:none;white-space:nowrap}
+.aud-flt{margin-bottom:12px;border-radius:18px;padding:12px 14px}
+.aud-flt summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.aud-flt summary::-webkit-details-marker{display:none}
+.aud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px}
+.aud-grid .afbtn{grid-column:1/-1}
+.aud-day{position:sticky;top:62px;z-index:5;margin:14px 0 10px;display:flex}
+.aud-day span{padding:5px 14px;border-radius:999px;font-size:12px;font-weight:800;color:var(--accent);background:var(--bg2);border:1px solid rgba(56,189,248,.3);box-shadow:var(--shadow)}
+.aud-ev{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding-bottom:12px;animation:rise .35s both}
+.aud-ev::before{content:"";position:absolute;inset-inline-start:21px;top:44px;bottom:-2px;width:2px;background:linear-gradient(var(--border),transparent)}
+.aud-ev:last-child::before{display:none}
+.aud-dot{width:44px;height:44px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:20px;background:color-mix(in srgb,var(--c) 16%,var(--bg2));border:1px solid color-mix(in srgb,var(--c) 45%,transparent);box-shadow:0 0 22px -8px var(--c);position:relative;z-index:1}
+.aud-card{min-width:0;border-radius:16px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-inline-start:3px solid var(--c);transition:transform .18s,box-shadow .18s}
+.aud-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px -16px var(--c)}
+.aud-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.aud-act{color:var(--c);font-size:15px}
+.aud-tab{padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(56,189,248,.12);color:var(--accent);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aud-time{margin-inline-start:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.aud-who{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px;min-width:0;flex-wrap:wrap}
+.aud-av{width:22px;height:22px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));flex:none}
+.aud-rec{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}.aud-rec b{color:var(--text)}
+.aud-dev{font-size:11px;color:var(--muted);padding:1px 8px;border-radius:8px;background:var(--surface2)}
+.aud-body{margin-top:9px}
+.aud-kvs{display:flex;flex-wrap:wrap;gap:6px}
+.aud-kv{display:inline-flex;align-items:baseline;gap:6px;padding:4px 10px;border-radius:10px;font-size:12.5px;background:var(--surface2);border:1px solid var(--border);max-width:100%;min-width:0}
+.aud-kv small{color:var(--muted);font-weight:700;font-size:11px;flex:none}
+.aud-kv b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.aud-kv.n{background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3)}
+.aud-kv.o{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.28)}
+.aud-kv.o b{text-decoration:line-through;text-decoration-color:rgba(248,113,113,.7)}
+.aud-kv.w{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3)}
+.aud-df{display:flex;flex-direction:column;gap:6px}
+.aud-dr{display:grid;grid-template-columns:minmax(70px,26%) minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center;font-size:12.5px}
+@media(max-width:560px){.aud-dr{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}.aud-dr .aud-fk{grid-column:1/-1}}
+.aud-fk{color:var(--muted);font-weight:700;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aud-old,.aud-new{padding:4px 9px;border-radius:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.aud-old{background:rgba(248,113,113,.11);color:var(--err);text-decoration:line-through;text-decoration-color:rgba(248,113,113,.5)}
+.aud-new{background:rgba(52,211,153,.13);color:var(--ok);font-weight:700}
+.aud-arr{color:var(--muted)}[dir=rtl] .aud-arr{display:inline-block;transform:scaleX(-1)}
+.aud-empty{opacity:.6;font-style:normal}
+.aud-more{align-self:center;font-size:12px;font-weight:700;color:var(--muted);padding:2px 8px}
+.aud-det{margin-top:9px}
+.aud-det summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);font-weight:700}
+.aud-det summary::-webkit-details-marker{display:none}
+.aud-det summary .ic{width:14px;height:14px}
+.aud-det[open] summary{color:var(--accent)}
+.aud-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12px;color:var(--muted);word-break:break-all}.aud-meta b{color:var(--text)}
+.aud-det pre{white-space:pre-wrap;word-break:break-all;font-size:11px;margin:8px 0 0;padding:10px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);max-height:220px;overflow:auto;direction:ltr;text-align:left}
+.aud-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.aud-go{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:11px;border:0;cursor:pointer;font-weight:700;font-size:12.5px;color:#fff;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:var(--glow);transition:transform .12s}
+.aud-go:active{transform:scale(.95)}.aud-go .ic{width:15px;height:15px}
+.aud-go.ghost{background:var(--surface2);color:var(--text);box-shadow:none;border:1px solid var(--border)}
+.aud-gone{font-size:12px;color:var(--err);font-weight:700}
+.aud-pg{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:8px}
+.aud-none{text-align:center;padding:50px 16px;color:var(--muted)}.aud-none div{font-size:46px;margin-bottom:6px}
+@media(max-width:480px){.aud-ev{grid-template-columns:36px minmax(0,1fr);gap:8px}.aud-dot{width:36px;height:36px;font-size:17px;border-radius:12px}.aud-ev::before{inset-inline-start:17px;top:36px}.aud-time{margin-inline-start:0;width:100%}}
+@media(prefers-reduced-motion:reduce){.aud-ev,.aud-hero{animation:none}}`;
+  document.head.appendChild(s);
+}
 async function admAudit() {
-  const box = $('#adm'), q = S.auditQ; box.innerHTML = '<div class="skeleton"></div>';
+  audCss();
+  const box = $('#adm'), q = S.auditQ; box.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
   try {
     const [u, r] = await Promise.all([api('admin_users'), api('admin_audit', { filters: q.filters, page: q.page })]); const F = q.filters;
-    box.innerHTML = `<div class="card glass" style="margin-bottom:12px"><div class="afilt">
-      <select class="inp" id="aq_user"><option value="">${esc(t('user'))}: ${esc(t('allUsers'))}</option>${u.users.map(x => `<option ${F.user === x.username ? 'selected' : ''}>${esc(x.username)}</option>`).join('')}</select>
-      <select class="inp" id="aq_tab"><option value="">${esc(t('allTabs'))}</option>${u.tabs.map(x => `<option ${F.tab === x.name ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
-      <select class="inp" id="aq_action"><option value="">${esc(t('allActions'))}</option>${ACTIONS.map(x => `<option ${F.action === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
-      <input class="inp" id="aq_text" placeholder="${esc(t('search'))}" value="${esc(F.text || '')}">
-      <input class="inp" id="aq_from" type="date" value="${esc(F.from || '')}" title="${esc(t('from'))}"><input class="inp" id="aq_to" type="date" value="${esc(F.to || '')}" title="${esc(t('to'))}">
-      <button class="btn primary afbtn" data-act="aq_apply">${ic('search')} ${esc(t('apply'))}</button></div></div>
-      <div class="muted" style="margin:0 4px 8px;font-size:13px">${r.total} ${esc(t('rows'))}</div><div class="tscroll"><table class="t aud"><thead><tr><th>${esc(t('time'))}</th><th>${esc(t('user'))}</th><th>${esc(t('action'))}</th><th>${esc(t('tabs'))}</th><th>${esc(t('details'))}</th></tr></thead><tbody>
-      ${r.rows.map(a => `<tr><td style="white-space:nowrap">${fullTime(a.ts)}</td><td>${esc(a.user)}</td><td><span class="badge ${esc(a.action)}">${esc(a.action)}</span></td><td>${esc(a.tab)}<div class="muted" style="font-size:11px">${esc(String(a.rowId).slice(0, 8))}</div></td><td style="max-width:360px"><details><summary class="muted" style="cursor:pointer;font-size:12px">${esc(String(a.details).slice(0, 60))}</summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:11px;margin:6px 0 0">${esc(prettyJson(a.details))}</pre></details></td></tr>`).join('')}</tbody></table></div>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted" style="align-self:center">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
+    if (S.view.kind !== 'admin' || S.view.admin !== 'audit') return;
+    const nf = ['user', 'tab', 'action', 'text', 'from', 'to'].filter(k => F[k]).length, g = { c: 0, u: 0, d: 0, s: 0 };
+    r.rows.forEach(a => { if (a.action === 'create') g.c++; else if (a.action === 'update') g.u++; else if (a.action === 'delete') g.d++; else if (AUD_SEC.includes(a.action)) g.s++; });
+    let lastDay = null, idx = 0;
+    const events = r.rows.map(a => { const day = audDay(a.ts); let head = ''; if (day !== lastDay) { lastDay = day; head = `<div class="aud-day"><span>${esc(day)}</span></div>`; } return head + audEvent(a, idx++); }).join('');
+    const stat = (l, v, c) => `<div class="aud-stat"><small>${esc(l)} · ${esc(t('audThisPage'))}</small><b style="color:${c}">${v}</b></div>`;
+    box.innerHTML = `<div class="aud-hero"><div class="aud-ht"><div class="aud-hi">🛡️</div><div><b>${esc(t('audit'))}</b><span>${esc(t('audSub'))}</span></div><div class="aud-total"><b>${r.total.toLocaleString(loc())}</b><small>${esc(t('audEvents'))}</small></div></div>
+      <div class="aud-stats">${stat(t('audAdded'), g.c, 'var(--ok)')}${stat(t('audEdited'), g.u, 'var(--accent)')}${stat(t('audDeleted'), g.d, 'var(--err)')}${stat(t('audSecurity'), g.s, g.s ? 'var(--err)' : 'var(--muted)')}</div></div>
+      <div class="aud-bar"><div class="aud-search">${ic('search')}<input class="inp" id="aq_text" placeholder="${esc(t('search'))}" value="${esc(F.text || '')}" autocomplete="off"></div><button class="btn primary" data-act="aq_apply">${ic('search')}<span class="hidden sm:inline">${esc(t('apply'))}</span></button></div>
+      <div class="aud-chips">${AUD_QUICK.map(([v, em]) => `<button type="button" class="chip ${(F.action || '') === v ? 'on' : ''}" data-aq-act="${v}">${em} ${esc(v ? audLbl(v) : t('all'))}</button>`).join('')}${nf ? `<button type="button" class="chip" data-aq-clear="1">✕ ${esc(t('audClear'))}</button>` : ''}</div>
+      <details class="aud-flt card glass" ${nf ? 'open' : ''}><summary>🎛️ ${esc(t('audFilters'))}${nf ? ` <span class="badge">${nf}</span>` : ''}</summary><div class="aud-grid">
+        <select class="inp" id="aq_user"><option value="">${esc(t('user'))}: ${esc(t('allUsers'))}</option>${u.users.map(x => `<option ${F.user === x.username ? 'selected' : ''}>${esc(x.username)}</option>`).join('')}</select>
+        <select class="inp" id="aq_tab"><option value="">${esc(t('allTabs'))}</option>${u.tabs.map(x => `<option ${F.tab === x.name ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+        <select class="inp" id="aq_action"><option value="">${esc(t('allActions'))}</option>${ACTIONS.map(x => `<option value="${x}" ${F.action === x ? 'selected' : ''}>${esc(audLbl(x))}</option>`).join('')}</select>
+        <input class="inp" id="aq_from" type="date" value="${esc(F.from || '')}" title="${esc(t('from'))}"><input class="inp" id="aq_to" type="date" value="${esc(F.to || '')}" title="${esc(t('to'))}">
+        <button class="btn primary afbtn" data-act="aq_apply">${ic('search')} ${esc(t('apply'))}</button></div></details>
+      ${r.rows.length ? `<div class="aud-tl">${events}</div>` : `<div class="aud-none"><div>🔎</div><b style="color:var(--text)">${esc(t('audNoRows'))}</b></div>`}
+      <div class="aud-pg"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
   } catch (e) { adminErr(e); }
 }
+/* audit-only listeners: quick filter chips, search on Enter, jump links to user / page editors */
+document.addEventListener('click', async e => {
+  if (e.target.closest('[data-aq-clear]')) { S.auditQ = { page: 0, filters: {} }; admAudit(); return; }
+  const qa = e.target.closest('[data-aq-act]');
+  if (qa) {
+    const rd = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+    S.auditQ = { page: 0, filters: { user: rd('aq_user'), tab: rd('aq_tab'), action: qa.dataset.aqAct, text: rd('aq_text').trim(), from: rd('aq_from'), to: rd('aq_to') } }; admAudit(); return;
+  }
+  const go = e.target.closest('[data-aud]'); if (!go) return;
+  const kind = go.dataset.aud, id = go.dataset.id;
+  try {
+    if (kind === 'user') {
+      const r = await api('admin_users');
+      if (!r.users.find(x => x.username === id)) { toast(t('audNoUser'), 'warn'); return; }
+      S._adm = r; S.view = { ...S.view, kind: 'admin', admin: 'users' }; renderApp(); openUserForm(id);
+    } else if (kind === 'tab') {
+      const r = await api('admin_tabs'); S._admTabs = r.tabs;
+      if (!r.tabs.find(x => x.name === id)) { toast(t('audMissing'), 'warn'); return; }
+      S.view = { ...S.view, kind: 'admin', admin: 'tabs' }; renderApp(); openTabBuilder(id);
+    }
+  } catch (er) { adminErr(er); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'aq_text') { const b = document.querySelector('[data-act=aq_apply]'); if (b) b.click(); } });
 const prettyJson = s => { try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; } };
 async function admUsers() {
   const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
