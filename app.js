@@ -884,19 +884,60 @@ async function admOverview() {
   };
   await load(); S.adminTimer = setInterval(load, CONFIG.ADMIN_POLL_MS);
 }
+/* ----------------------------- audit log: responsive card timeline ----------------------------- */
+const AU_META = { login: ['🔑', 'ok', 'دخول', 'Signed in'], logout: ['🚪', 'mute', 'خروج', 'Signed out'], login_fail: ['⚠️', 'err', 'فشل دخول', 'Failed sign-in'], login_blocked: ['⛔', 'err', 'دخول محظور', 'Blocked sign-in'], lockout: ['🔒', 'err', 'قفل الحساب', 'Account locked'], security_alert: ['🚨', 'err', 'تنبيه أمني', 'Security alert'], create: ['➕', 'ok', 'إضافة', 'Created'], update: ['✏️', 'info', 'تعديل', 'Updated'], delete: ['🗑️', 'err', 'حذف', 'Deleted'], conflict: ['⚡', 'warn', 'تعارض', 'Conflict'], upload: ['📎', 'info', 'رفع ملف', 'File upload'], download: ['⬇️', 'info', 'تحميل', 'Download'], user_create: ['👤', 'ok', 'مستخدم جديد', 'User created'], user_update: ['👤', 'info', 'تعديل مستخدم', 'User updated'], user_unlock: ['🔓', 'ok', 'فك قفل', 'Unlocked'], tab_create: ['📄', 'ok', 'صفحة جديدة', 'Page created'], tab_update: ['📄', 'info', 'تعديل صفحة', 'Page updated'], brand_update: ['🎨', 'info', 'تغيير الشعار', 'Logo changed'] };
+function auStyle() {
+  if (document.getElementById('au-css')) return;
+  const s = document.createElement('style'); s.id = 'au-css';
+  s.textContent = `.au-day{font-size:12px;font-weight:700;color:var(--muted);margin:14px 4px 6px}.au-day:first-child{margin-top:4px}
+.au-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:6px;overflow:hidden}
+.au-item>summary{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;list-style:none}.au-item>summary::-webkit-details-marker{display:none}
+.au-item[open]{border-color:var(--accent)}
+.au-ic{flex:none;width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--surface2)}
+.au-ok .au-ic{background:color-mix(in srgb,var(--ok) 16%,transparent)}.au-err .au-ic{background:color-mix(in srgb,var(--err) 16%,transparent)}.au-warn .au-ic{background:color-mix(in srgb,var(--warn) 18%,transparent)}.au-info .au-ic{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.au-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.au-l1{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:14px}
+.au-act{font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:8px;background:var(--surface2)}
+.au-ok .au-act{color:var(--ok)}.au-err .au-act{color:var(--err)}.au-warn .au-act{color:var(--warn)}.au-info .au-act{color:var(--accent)}
+.au-sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.au-time{flex:none;font-size:12px;color:var(--muted)}
+.au-det{padding:10px 12px 12px;border-top:1px dashed var(--border);display:flex;flex-wrap:wrap;gap:6px}
+.au-kv{font-size:12px;background:var(--surface2);border-radius:8px;padding:3px 9px;max-width:100%;word-break:break-word}.au-kv b{color:var(--muted);font-weight:600;margin-inline-end:5px}
+.au-meta{width:100%;font-size:11.5px;color:var(--muted)}
+.au-f>summary{cursor:pointer;font-weight:600;list-style:none}.au-f>summary::-webkit-details-marker{display:none}.au-f[open]>summary{margin-bottom:10px}
+.au-list{max-width:860px;margin-inline:auto}`;
+  document.head.appendChild(s);
+}
+function auDetails(raw) {
+  let o = null; try { o = JSON.parse(raw); } catch (e) {}
+  if (o && typeof o === 'object' && !Array.isArray(o)) {
+    const cut = v => { const s = (v !== null && typeof v === 'object') ? JSON.stringify(v) : String(v); return s.length > 160 ? s.slice(0, 160) + '…' : s; };
+    return Object.entries(o).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `<span class="au-kv"><b>${esc(k)}</b>${esc(cut(v))}</span>`).join('');
+  }
+  return raw && String(raw).trim() ? `<pre style="white-space:pre-wrap;word-break:break-word;font-size:11.5px;margin:0;width:100%">${esc(prettyJson(raw))}</pre>` : '';
+}
+function auRows(rows) {
+  const ar = S.lang === 'ar', loc = ar ? 'ar-EG' : undefined, today = new Date().toDateString(), yest = new Date(Date.now() - 864e5).toDateString();
+  let last = '';
+  return rows.map(a => {
+    const d = new Date(a.ts), key = d.toDateString(); let head = '';
+    if (key !== last) { last = key; head = `<div class="au-day">${key === today ? (ar ? 'اليوم' : 'Today') : key === yest ? (ar ? 'أمس' : 'Yesterday') : esc(d.toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</div>`; }
+    const m = AU_META[a.action] || ['•', 'mute', a.action, a.action], det = auDetails(a.details), rid = a.rowId ? String(a.rowId).slice(0, 8) : '';
+    return head + `<details class="au-item au-${m[1]}"><summary><span class="au-ic">${m[0]}</span><span class="au-main"><span class="au-l1"><b>${esc(a.user || '—')}</b><span class="au-act">${esc(ar ? m[2] : m[3])}</span></span>${a.tab || rid ? `<span class="au-sub">${esc(a.tab || '')}${a.tab && rid ? ' · ' : ''}${esc(rid)}</span>` : ''}</span><span class="au-time" dir="ltr">${esc(d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' }))}</span></summary><div class="au-det">${det}<span class="au-meta" dir="auto">${esc(fullTime(a.ts))} · ${esc(a.action)}</span></div></details>`;
+  }).join('');
+}
 async function admAudit() {
   const box = $('#adm'), q = S.auditQ; box.innerHTML = '<div class="skeleton"></div>';
   try {
-    const [u, r] = await Promise.all([api('admin_users'), api('admin_audit', { filters: q.filters, page: q.page })]); const F = q.filters;
-    box.innerHTML = `<div class="card glass" style="margin-bottom:12px"><div class="afilt">
+    const [u, r] = await Promise.all([api('admin_users'), api('admin_audit', { filters: q.filters, page: q.page })]); const F = q.filters; auStyle(); const nF = Object.values(F || {}).filter(Boolean).length;
+    box.innerHTML = `<details class="card glass au-f" style="margin-bottom:12px" ${nF || innerWidth >= 900 ? 'open' : ''}><summary>🔍 ${esc(S.lang === 'ar' ? 'تصفية وبحث' : 'Filter & search')}${nF ? ` <span class="badge">${nF}</span>` : ''}</summary><div class="afilt">
       <select class="inp" id="aq_user"><option value="">${esc(t('user'))}: ${esc(t('allUsers'))}</option>${u.users.map(x => `<option ${F.user === x.username ? 'selected' : ''}>${esc(x.username)}</option>`).join('')}</select>
       <select class="inp" id="aq_tab"><option value="">${esc(t('allTabs'))}</option>${u.tabs.map(x => `<option ${F.tab === x.name ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
       <select class="inp" id="aq_action"><option value="">${esc(t('allActions'))}</option>${ACTIONS.map(x => `<option ${F.action === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       <input class="inp" id="aq_text" placeholder="${esc(t('search'))}" value="${esc(F.text || '')}">
       <input class="inp" id="aq_from" type="date" value="${esc(F.from || '')}" title="${esc(t('from'))}"><input class="inp" id="aq_to" type="date" value="${esc(F.to || '')}" title="${esc(t('to'))}">
-      <button class="btn primary afbtn" data-act="aq_apply">${ic('search')} ${esc(t('apply'))}</button></div></div>
-      <div class="muted" style="margin:0 4px 8px;font-size:13px">${r.total} ${esc(t('rows'))}</div><div class="tscroll"><table class="t aud"><thead><tr><th>${esc(t('time'))}</th><th>${esc(t('user'))}</th><th>${esc(t('action'))}</th><th>${esc(t('tabs'))}</th><th>${esc(t('details'))}</th></tr></thead><tbody>
-      ${r.rows.map(a => `<tr><td style="white-space:nowrap">${fullTime(a.ts)}</td><td>${esc(a.user)}</td><td><span class="badge ${esc(a.action)}">${esc(a.action)}</span></td><td>${esc(a.tab)}<div class="muted" style="font-size:11px">${esc(String(a.rowId).slice(0, 8))}</div></td><td style="max-width:360px"><details><summary class="muted" style="cursor:pointer;font-size:12px">${esc(String(a.details).slice(0, 60))}</summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:11px;margin:6px 0 0">${esc(prettyJson(a.details))}</pre></details></td></tr>`).join('')}</tbody></table></div>
+      <button class="btn primary afbtn" data-act="aq_apply">${ic('search')} ${esc(t('apply'))}</button></div></details>
+      <div class="muted" style="margin:0 4px 8px;font-size:13px">${r.total} ${esc(t('rows'))}</div><div class="au-list">${auRows(r.rows)}</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted" style="align-self:center">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
   } catch (e) { adminErr(e); }
 }
