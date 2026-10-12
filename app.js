@@ -1,10 +1,11 @@
+
 'use strict';
 /* =============================================================================
    HR & Operations ERP — Frontend SPA (GitHub Pages)
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbzGiHkGvt9anMJ-76LbbEWSU1jeSlhKd5jVAV03K9WThQfG1bQxJS9wFTegRYBrrVvHiw/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbxV0_QDycXTuk9Mgh__yitff-Qgw1ZUUaMWHGLnwgu4iudiV3GO9aReDM_gQkNPJAec/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
   ADMIN_POLL_MS: 10000,
