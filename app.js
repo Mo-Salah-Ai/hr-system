@@ -901,16 +901,47 @@ function prefetchAdmin() {
   S._pf = Date.now();
   [['admin_overview'], ['admin_users'], ['admin_tabs'], ['admin_audit', { filters: S.auditQ.filters, page: S.auditQ.page }]].forEach(([a, p], i) => setTimeout(() => adminGet(a, p).catch(() => {}), 500 * i));
 }
-function presenceText(u) { return u.online ? t('onlineSince', hhmm(u.since)) : t('lastSeen', relTime(u.lastSeen)); }
+function presenceText(u) { return u.online ? t('onlineSince', `<bdi dir="ltr">${esc(hhmm(u.since))}</bdi>`) : t('lastSeen', esc(relTime(u.lastSeen))); }   // returns safe HTML (time kept LTR inside RTL text)
+function ovCss() {
+  if (document.getElementById('ovcss')) return;
+  const st = document.createElement('style'); st.id = 'ovcss';
+  st.textContent = `.ov-kpi{text-align:start;cursor:pointer;font:inherit;color:inherit;width:100%;transition:transform .15s,box-shadow .2s,border-color .2s}
+.ov-kpi:hover{transform:translateY(-3px);border-color:var(--c);box-shadow:0 14px 30px -16px var(--c)}.ov-kpi:active{transform:scale(.97)}
+.ov-kpi small{display:block}.ov-go{position:absolute;inset-inline-end:12px;bottom:10px;font-size:22px;color:var(--c);opacity:.55;line-height:1}
+.ov-tl{margin-top:10px;position:relative;display:flex;flex-direction:column;gap:2px}
+.ov-ev{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:start;width:100%;padding:8px 6px;border:0;border-radius:14px;background:none;cursor:pointer;position:relative;transition:background .15s}
+.ov-ev:hover{background:var(--surface2)}
+.ov-ev:not(:last-child)::before{content:"";position:absolute;inset-inline-start:25px;top:44px;bottom:-4px;width:2px;background:linear-gradient(var(--border),transparent)}
+.ov-dot{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:18px;background:color-mix(in srgb,var(--c) 16%,var(--bg2));border:1px solid color-mix(in srgb,var(--c) 42%,transparent);position:relative;z-index:1}
+.ov-tx{min-width:0;display:flex;flex-direction:column;gap:2px}.ov-tx b{font-size:14px;color:var(--c);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-tx small{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov-tm{display:flex;flex-direction:column;align-items:flex-end;font-size:12.5px;font-weight:700;white-space:nowrap}.ov-tm small{font-size:11px;font-weight:500;color:var(--muted)}
+[dir=rtl] .ov-tm{align-items:flex-start}
+.ov-flash{animation:ovf 1.2s ease}@keyframes ovf{0%,60%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:none}}`;
+  document.head.appendChild(st);
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-ov]'); if (!b) return;
+  const k = b.dataset.ov, go = (sec, filters) => { S.auditQ = { page: 0, filters: filters || {} }; S.view = { ...S.view, kind: 'admin', admin: sec }; renderMain(); };
+  const jump = id => { const el = document.getElementById(id); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.remove('ov-flash'); void el.offsetWidth; el.classList.add('ov-flash'); return true; } return false; };
+  if (k === 'online') { if (!jump('ovUsers')) toast(t('noData'), 'warn'); }
+  else if (k === 'users') go('users');
+  else if (k === 'today') { const d = new Date(), z = n => String(n).padStart(2, '0'); go('audit', { from: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}` }); }
+  else if (k === 'alerts') { if (!jump('ovAlerts')) go('audit', { action: 'security_alert' }); }
+  else if (k === 'audit') go('audit');
+  else if (k === 'user') go('audit', { user: b.dataset.u });
+});
 async function admOverview() {
+  ovCss();
   const box = $('#adm'), c0 = adminCached('admin_overview'); if (!c0) box.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
   const paint = r => {
       S.alerts = r.kpis.openAlerts; renderBell(); const k = r.kpis, max = Math.max(1, ...r.hourly), now = new Date().getHours();
-      const html = `<div class="kpis">${[['onlineNow', k.online, 'var(--ok)'], ['totalUsers', k.total, 'var(--accent)'], ['actionsToday', k.actionsToday, 'var(--accent2)'], ['openAlerts', k.openAlerts, k.openAlerts ? 'var(--err)' : 'var(--muted)']].map(([l, v, c]) => `<div class="kpi glass" style="--c:${c}"><small>${esc(t(l))}</small><b style="color:${c}">${v}</b></div>`).join('')}</div>
-      ${r.alerts.length ? `<div style="margin-top:14px">${r.alerts.map(a => `<div class="alert"><span style="font-size:22px">🚨</span><div style="flex:1;min-width:0;word-break:break-word"><b>${esc(t('brute'))}</b><div style="font-size:13px">${esc(a.message)}</div><div class="muted" style="font-size:12px">${fullTime(a.ts)}</div></div><button class="btn" data-act="ack" data-id="${esc(a.id)}">${esc(t('ack'))}</button></div>`).join('')}</div>` : ''}
-      <div class="card glass" style="margin-top:14px"><b>${esc(t('onlineNow'))} / ${esc(t('users'))}</b>${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}<span class="on ${u.online ? 'y' : ''}"></span></div><div style="flex:1;min-width:0"><b>${esc(u.name || u.username)}</b> <span class="badge">${esc(u.role)}</span>${u.locked ? ` <span class="badge" style="color:var(--err)">🔒 ${esc(t('locked'))}</span>` : ''}${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px">@${esc(u.username)} · ${esc(presenceText(u))}</div></div>${u.locked ? `<button class="btn" data-act="unlock" data-id="${esc(u.username)}">${esc(t('unlock'))}</button>` : ''}</div>`).join('')}</div>
+      const html = `<div class="kpis">${[['onlineNow', k.online, 'var(--ok)', 'online', '🟢'], ['totalUsers', k.total, 'var(--accent)', 'users', '👥'], ['actionsToday', k.actionsToday, 'var(--accent2)', 'today', '✏️'], ['openAlerts', k.openAlerts, k.openAlerts ? 'var(--err)' : 'var(--muted)', 'alerts', '🚨']].map(([l, v, c, go, em]) => `<button type="button" class="kpi ov-kpi glass" data-ov="${go}" style="--c:${c}"><small>${em} ${esc(t(l))}</small><b style="color:${c}">${v}</b><span class="ov-go">${S.lang === 'ar' ? '‹' : '›'}</span></button>`).join('')}</div>
+      ${r.alerts.length ? `<div id="ovAlerts" style="margin-top:14px">${r.alerts.map(a => `<div class="alert"><span style="font-size:22px">🚨</span><div style="flex:1;min-width:0;word-break:break-word"><b>${esc(t('brute'))}</b><div style="font-size:13px">${esc(a.message)}</div><div class="muted" style="font-size:12px">${fullTime(a.ts)}</div></div><button class="btn" data-act="ack" data-id="${esc(a.id)}">${esc(t('ack'))}</button></div>`).join('')}</div>` : ''}
+      <div class="card glass" id="ovUsers" style="margin-top:14px"><b>${esc(t('onlineNow'))} / ${esc(t('users'))}</b>${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}<span class="on ${u.online ? 'y' : ''}"></span></div><div style="flex:1;min-width:0"><b>${esc(u.name || u.username)}</b> <span class="badge">${esc(u.role)}</span>${u.locked ? ` <span class="badge" style="color:var(--err)">🔒 ${esc(t('locked'))}</span>` : ''}${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px">@${esc(u.username)} · ${presenceText(u)}</div></div>${u.locked ? `<button class="btn" data-act="unlock" data-id="${esc(u.username)}">${esc(t('unlock'))}</button>` : ''}</div>`).join('')}</div>
       <div class="card glass" style="margin-top:14px"><b>${esc(t('activity24'))}</b><svg viewBox="0 0 240 70" style="width:100%;height:90px;margin-top:8px">${r.hourly.map((v, i) => { const h = Math.round(v / max * 56); return `<rect x="${i * 10 + 1}" y="${64 - h}" width="8" height="${Math.max(h, 2)}" rx="2" fill="url(#g)" opacity="${v ? 1 : .25}"/>`; }).join('')}<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent2)"/></linearGradient></defs></svg></div>
-      <div class="card glass" style="margin-top:14px"><b>${esc(t('recent'))}</b>${r.recent.map(a => `<div class="urow wrap" style="font-size:13px"><span class="badge ${esc(a.action)}">${esc(a.action)}</span><b>${esc(a.user)}</b><span class="muted" style="flex:1">${esc(a.tab)}</span><span class="muted">${hhmm(a.ts)}</span></div>`).join('') || `<div class="muted">—</div>`}</div>`;
+      <div class="card glass" style="margin-top:14px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1">${esc(t('recent'))}</b><button type="button" class="btn" data-ov="audit" style="padding:6px 12px;font-size:12px">${esc(t('audit'))} ${S.lang === 'ar' ? '‹' : '›'}</button></div>
+        <div class="ov-tl">${r.recent.map(a => { const m = (typeof AUD !== 'undefined' && AUD[a.action]) || ['•', 'var(--muted)'], sc0 = a.tab ? schemaOf(a.tab) : null; return `<button type="button" class="ov-ev" data-ov="user" data-u="${esc(a.user)}" style="--c:${m[1]}"><span class="ov-dot">${m[0]}</span><span class="ov-tx"><b>${esc(audLbl(a.action))}</b><small>${esc(a.user || '—')}${a.tab ? ' · ' + esc(sc0 ? tl(sc0) : a.tab) : ''}</small></span><span class="ov-tm" dir="ltr">${esc(hhmm(a.ts))}<small>${esc(relTime(a.ts))}</small></span></button>`; }).join('') || `<div class="muted" style="padding:10px 0">—</div>`}</div></div>`;
       if (box._h !== html) { box.innerHTML = html; box._h = html; }   // repaint only when something changed (no flicker)
   };
   const load = async () => {
