@@ -1,14 +1,13 @@
-
 'use strict';
 /* =============================================================================
    HR & Operations ERP — Frontend SPA (GitHub Pages)
    Offline-first (IndexedDB) · dynamic schema · RBAC · chat-like entry · admin
    ============================================================================= */
 const CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxV0_QDycXTuk9Mgh__yitff-Qgw1ZUUaMWHGLnwgu4iudiV3GO9aReDM_gQkNPJAec/exec',   // Apps Script Web App /exec URL
+  API_URL: 'https://script.google.com/macros/s/AKfycbwUlYx4Mfz0JONBptoePUYNLXCPMIgaJfTfhMG-f53HD2JAtXhHkG4Z0lN2-02cJUgWDw/exec',   // Apps Script Web App /exec URL
   HEARTBEAT_MS: 30000,
   SYNC_MS: 10000,
-  ADMIN_POLL_MS: 10000,
+  ADMIN_POLL_MS: 15000,
   DEFAULT_MAX_MB: 5,
   PAGE: 100
 };
@@ -174,6 +173,7 @@ async function api(action, payload = {}, { auth = true } = {}) {
   let j; try { j = await r.json(); } catch (e) { setOnline(false); throw Object.assign(new Error('bad_response'), { code: 'network' }); }
   setOnline(true);
   if (!j.ok) { const err = new Error(j.message || j.error); err.code = j.error; err.data = j; if (j.error === 'auth' && auth) handleAuthExpired(); throw err; }
+  if (/^admin_(saveUser|userAction|createTab|updateTab|ackAlert)$/.test(action)) ADC.clear();   // admin data changed → drop cached admin pages
   return j;
 }
 function uploadFile(tab, field, file, onProgress) {
@@ -431,8 +431,9 @@ function startTimers() {
     } catch (e) {}
   }, CONFIG.HEARTBEAT_MS);
   syncTimer = setInterval(() => { if (S.token) { flush(); } }, CONFIG.SYNC_MS);
+  setTimeout(prefetchAdmin, 1500);   // warm the admin pages in the background so the first click is instant
 }
-function stopTimers() { clearInterval(hbTimer); clearInterval(syncTimer); clearInterval(S.adminTimer); }
+function stopTimers() { clearInterval(hbTimer); clearInterval(syncTimer); clearInterval(S.adminTimer); ADC.clear(); S._pf = 0; }
 
 async function refresh() {
   const b = await api('bootstrap');
@@ -777,20 +778,38 @@ function renderAdmin() {
   ({ overview: admOverview, users: admUsers, audit: admAudit, tabs: admTabs }[sec] || admOverview)();
 }
 const adminErr = e => { if (e.code !== 'auth') toast(e.code === 'network' ? t('networkErr') : e.message, 'err'); };
+/* admin data cache — stale-while-revalidate: admin pages open instantly from memory, then refresh in the background */
+const ADC = new Map(), ADF = new Map();
+const adminKey = (a, p) => a + '|' + JSON.stringify(p || {});
+const adminCached = (a, p) => { const e = ADC.get(adminKey(a, p)); return e ? e.v : null; };
+function adminGet(a, p) {
+  const k = adminKey(a, p); if (ADF.has(k)) return ADF.get(k);
+  const pr = api(a, p || {}).then(v => { ADC.set(k, { v }); if (ADC.size > 40) ADC.delete(ADC.keys().next().value); return v; }).finally(() => ADF.delete(k));
+  ADF.set(k, pr); return pr;
+}
+function prefetchAdmin() {
+  if (!S.user || S.user.role !== 'admin' || !S.token || !navigator.onLine || Date.now() - (S._pf || 0) < 60000) return;
+  S._pf = Date.now();
+  [['admin_overview'], ['admin_users'], ['admin_tabs'], ['admin_audit', { filters: S.auditQ.filters, page: S.auditQ.page }]].forEach(([a, p], i) => setTimeout(() => adminGet(a, p).catch(() => {}), 500 * i));
+}
 function presenceText(u) { return u.online ? t('onlineSince', hhmm(u.since)) : t('lastSeen', relTime(u.lastSeen)); }
 async function admOverview() {
-  const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
-  const load = async () => {
-    try {
-      const r = await api('admin_overview'); if (S.view.kind !== 'admin' || S.view.admin !== 'overview') return;
+  const box = $('#adm'), c0 = adminCached('admin_overview'); if (!c0) box.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div>';
+  const paint = r => {
       S.alerts = r.kpis.openAlerts; renderBell(); const k = r.kpis, max = Math.max(1, ...r.hourly), now = new Date().getHours();
-      box.innerHTML = `<div class="kpis">${[['onlineNow', k.online, 'var(--ok)'], ['totalUsers', k.total, 'var(--accent)'], ['actionsToday', k.actionsToday, 'var(--accent2)'], ['openAlerts', k.openAlerts, k.openAlerts ? 'var(--err)' : 'var(--muted)']].map(([l, v, c]) => `<div class="kpi glass" style="--c:${c}"><small>${esc(t(l))}</small><b style="color:${c}">${v}</b></div>`).join('')}</div>
+      const html = `<div class="kpis">${[['onlineNow', k.online, 'var(--ok)'], ['totalUsers', k.total, 'var(--accent)'], ['actionsToday', k.actionsToday, 'var(--accent2)'], ['openAlerts', k.openAlerts, k.openAlerts ? 'var(--err)' : 'var(--muted)']].map(([l, v, c]) => `<div class="kpi glass" style="--c:${c}"><small>${esc(t(l))}</small><b style="color:${c}">${v}</b></div>`).join('')}</div>
       ${r.alerts.length ? `<div style="margin-top:14px">${r.alerts.map(a => `<div class="alert"><span style="font-size:22px">🚨</span><div style="flex:1;min-width:0;word-break:break-word"><b>${esc(t('brute'))}</b><div style="font-size:13px">${esc(a.message)}</div><div class="muted" style="font-size:12px">${fullTime(a.ts)}</div></div><button class="btn" data-act="ack" data-id="${esc(a.id)}">${esc(t('ack'))}</button></div>`).join('')}</div>` : ''}
       <div class="card glass" style="margin-top:14px"><b>${esc(t('onlineNow'))} / ${esc(t('users'))}</b>${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}<span class="on ${u.online ? 'y' : ''}"></span></div><div style="flex:1;min-width:0"><b>${esc(u.name || u.username)}</b> <span class="badge">${esc(u.role)}</span>${u.locked ? ` <span class="badge" style="color:var(--err)">🔒 ${esc(t('locked'))}</span>` : ''}${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px">@${esc(u.username)} · ${esc(presenceText(u))}</div></div>${u.locked ? `<button class="btn" data-act="unlock" data-id="${esc(u.username)}">${esc(t('unlock'))}</button>` : ''}</div>`).join('')}</div>
       <div class="card glass" style="margin-top:14px"><b>${esc(t('activity24'))}</b><svg viewBox="0 0 240 70" style="width:100%;height:90px;margin-top:8px">${r.hourly.map((v, i) => { const h = Math.round(v / max * 56); return `<rect x="${i * 10 + 1}" y="${64 - h}" width="8" height="${Math.max(h, 2)}" rx="2" fill="url(#g)" opacity="${v ? 1 : .25}"/>`; }).join('')}<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent2)"/></linearGradient></defs></svg></div>
       <div class="card glass" style="margin-top:14px"><b>${esc(t('recent'))}</b>${r.recent.map(a => `<div class="urow wrap" style="font-size:13px"><span class="badge ${esc(a.action)}">${esc(a.action)}</span><b>${esc(a.user)}</b><span class="muted" style="flex:1">${esc(a.tab)}</span><span class="muted">${hhmm(a.ts)}</span></div>`).join('') || `<div class="muted">—</div>`}</div>`;
-    } catch (e) { adminErr(e); }
+      if (box._h !== html) { box.innerHTML = html; box._h = html; }   // repaint only when something changed (no flicker)
   };
+  const load = async () => {
+    if (document.hidden && box._h) return;   // pause polling while the tab is in the background
+    try { const r = await adminGet('admin_overview'); if (S.view.kind !== 'admin' || S.view.admin !== 'overview') return; paint(r); }
+    catch (e) { if (!box._h) adminErr(e); }
+  };
+  if (c0) paint(c0);
   await load(); S.adminTimer = setInterval(load, CONFIG.ADMIN_POLL_MS);
 }
 /* ----------------------------- audit log: timeline view (UI only — API/filters/paging unchanged) ----------------------------- */
@@ -976,10 +995,9 @@ function audCss() {
 }
 async function admAudit() {
   audCss();
-  const box = $('#adm'), q = S.auditQ; box.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
-  try {
-    const [u, r] = await Promise.all([api('admin_users'), api('admin_audit', { filters: q.filters, page: q.page })]); const F = q.filters;
-    if (S.view.kind !== 'admin' || S.view.admin !== 'audit') return;
+  const box = $('#adm'), q = S.auditQ, pay = { filters: q.filters, page: q.page }, cu = adminCached('admin_users'), cr = adminCached('admin_audit', pay);
+  const paint = (u, r) => {
+    const F = q.filters;
     const nf = ['user', 'tab', 'action', 'text', 'from', 'to'].filter(k => F[k]).length, g = { c: 0, u: 0, d: 0, s: 0 };
     r.rows.forEach(a => { if (a.action === 'create') g.c++; else if (a.action === 'update') g.u++; else if (a.action === 'delete') g.d++; else if (AUD_SEC.includes(a.action)) g.s++; });
     let lastDay = null, idx = 0;
@@ -997,7 +1015,13 @@ async function admAudit() {
         <button class="btn primary afbtn" data-act="aq_apply">${ic('search')} ${esc(t('apply'))}</button></div></details>
       ${r.rows.length ? `<div class="aud-tl">${events}</div>` : `<div class="aud-none"><div>🔎</div><b style="color:var(--text)">${esc(t('audNoRows'))}</b></div>`}
       <div class="aud-pg"><button class="btn" data-act="apage" data-id="-1" ${q.page <= 0 ? 'disabled' : ''}>${esc(t('prev'))}</button><span class="muted">${q.page + 1} / ${Math.max(1, Math.ceil(r.total / r.size))}</span><button class="btn" data-act="apage" data-id="1" ${(q.page + 1) * r.size >= r.total ? 'disabled' : ''}>${esc(t('next'))}</button></div>`;
-  } catch (e) { adminErr(e); }
+  };
+  if (cu && cr) paint(cu, cr); else box.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+  try {
+    const [u, r] = await Promise.all([adminGet('admin_users'), adminGet('admin_audit', pay)]);
+    if (S.view.kind !== 'admin' || S.view.admin !== 'audit') return;
+    if (!cu || !cr || JSON.stringify(r) !== JSON.stringify(cr) || JSON.stringify(u) !== JSON.stringify(cu)) paint(u, r);
+  } catch (e) { if (!(cu && cr)) adminErr(e); }
 }
 /* audit-only listeners: quick filter chips, search on Enter, jump links to user / page editors */
 document.addEventListener('click', async e => {
@@ -1024,11 +1048,12 @@ document.addEventListener('click', async e => {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'aq_text') { const b = document.querySelector('[data-act=aq_apply]'); if (b) b.click(); } });
 const prettyJson = s => { try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; } };
 async function admUsers() {
-  const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
-  try {
-    const r = await api('admin_users'); S._adm = r;
-    box.innerHTML = `<button class="btn primary" data-act="user_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('newUser'))}</button><div class="card glass">${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}</div><div style="flex:1;min-width:0"><b>${esc(u.name)}</b> <span class="badge">${esc(u.role)}</span>${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@${esc(u.username)} · ${esc(u.role === 'admin' ? '*' : u.perms || '—')}</div></div><button class="btn icon" data-act="user_edit" data-id="${esc(u.username)}">${ic('edit')}</button></div>`).join('')}</div>`;
-  } catch (e) { adminErr(e); }
+  const box = $('#adm'), c0 = adminCached('admin_users');
+  const paint = r => { S._adm = r;
+    box.innerHTML = `<button class="btn primary" data-act="user_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('newUser'))}</button><div class="card glass">${r.users.map(u => `<div class="urow"><div class="av">${esc((u.name || u.username)[0].toUpperCase())}</div><div style="flex:1;min-width:0"><b>${esc(u.name)}</b> <span class="badge">${esc(u.role)}</span>${u.active ? '' : ' <span class="badge">off</span>'}<div class="muted" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@${esc(u.username)} · ${esc(u.role === 'admin' ? '*' : u.perms || '—')}</div></div><button class="btn icon" data-act="user_edit" data-id="${esc(u.username)}">${ic('edit')}</button></div>`).join('')}</div>`; };
+  if (c0) paint(c0); else box.innerHTML = '<div class="skeleton"></div>';
+  try { const r = await adminGet('admin_users'); if (S.view.kind !== 'admin' || S.view.admin !== 'users') return; if (!c0 || JSON.stringify(r) !== JSON.stringify(c0)) paint(r); }
+  catch (e) { if (!c0) adminErr(e); }
 }
 function parsePermsClient(s) { const m = {}; String(s || '').split(';').forEach(p => { p = p.trim(); if (!p) return; const i = p.lastIndexOf(':'); m[i < 0 ? p : p.slice(0, i)] = i < 0 ? 'r' : p.slice(i + 1); }); return m; }
 function openUserForm(username) {
@@ -1054,11 +1079,12 @@ function openUserForm(username) {
   });
 }
 async function admTabs() {
-  const box = $('#adm'); box.innerHTML = '<div class="skeleton"></div>';
-  try {
-    const r = await api('admin_tabs'); S._admTabs = r.tabs;
-    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;min-width:0">${esc(tb.icon)} ${esc(tb.label)} ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}</b><button class="btn icon" data-act="tab_edit" data-id="${esc(tb.name)}" title="${esc(t('editTab'))}">${ic('edit')}</button></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`;
-  } catch (e) { adminErr(e); }
+  const box = $('#adm'), c0 = adminCached('admin_tabs');
+  const paint = r => { S._admTabs = r.tabs;
+    box.innerHTML = `<button class="btn primary" data-act="tab_new" style="margin-bottom:12px">${ic('plus')} ${esc(t('createTab'))}</button>${r.tabs.map(tb => `<div class="card glass" style="margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px"><b style="flex:1;min-width:0">${esc(tb.icon)} ${esc(tb.label)} ${tb.ar ? `<span class="muted">· ${esc(tb.ar)}</span>` : ''}</b><button class="btn icon" data-act="tab_edit" data-id="${esc(tb.name)}" title="${esc(t('editTab'))}">${ic('edit')}</button></div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${tb.fields.map(f => `<span class="badge">${esc(f.label)} <span class="muted">· ${esc(typeName(f.type))}</span></span>`).join('')}</div></div>`).join('')}`; };
+  if (c0) paint(c0); else box.innerHTML = '<div class="skeleton"></div>';
+  try { const r = await adminGet('admin_tabs'); if (S.view.kind !== 'admin' || S.view.admin !== 'tabs') return; if (!c0 || JSON.stringify(r) !== JSON.stringify(c0)) paint(r); }
+  catch (e) { if (!c0) adminErr(e); }
 }
 /* create a new page (tab) or edit an existing one — editing renames/changes fields in place, new fields are added, existing columns are never deleted (hide them instead) */
 function openTabBuilder(tabName) {
@@ -1372,7 +1398,7 @@ document.addEventListener('click', async e => {
     case 'more': S.limit += CONFIG.PAGE; renderList(); break;
     case 'layout': S.layout = (S.layout || (innerWidth >= 1024 ? 'table' : 'cards')) === 'table' ? 'cards' : 'table'; renderTabShell(); break;
     case 'alerts': S.view = { ...S.view, kind: 'admin', admin: 'overview' }; renderApp(); break;
-    case 'adm': S.view.admin = id; renderApp(); break;
+    case 'adm': S.view.admin = id; renderMain(); break;
     case 'ack': try { await api('admin_ackAlert', { id }); admOverview(); } catch (er) { adminErr(er); } break;
     case 'unlock': try { await api('admin_userAction', { username: id, op: 'unlock' }); toast(t('unlock') + ' ✓'); admOverview(); } catch (er) { adminErr(er); } break;
     case 'user_new': openUserForm(null); break; case 'user_edit': openUserForm(id); break; case 'tab_new': openTabBuilder(); break; case 'tab_edit': openTabBuilder(id); break;
