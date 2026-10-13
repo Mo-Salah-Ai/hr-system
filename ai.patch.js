@@ -32,7 +32,7 @@ async function ask(q) {
     const r = await api('ai_ask', { q, history: hist.slice(-6) });
     w.innerHTML = md(r.answer); hist.push({ role: 'user', text: q }, { role: 'ai', text: r.answer });
   } catch (e) {
-    const m = { ai_not_configured: X('AI key is not configured on the server.', 'مفتاح الذكاء الاصطناعي غير مُعدّ في الخادم.'), rate_limited: X('Too many questions — wait a minute.', 'أسئلة كثيرة — انتظر دقيقة.'), network: X('You are offline.', 'أنت غير متصل.') }[e.code] || e.message;
+    const m = { ai_not_configured: X('AI key is not configured on the server.', 'مفتاح الذكاء الاصطناعي غير مُعدّ في الخادم.'), unknown_action: X('Server not updated: add `ai_ask: aiAsk,` to ROUTES in Code.gs and deploy a NEW version.', 'الخادم غير محدّث: أضف ai_ask: aiAsk, داخل ROUTES في Code.gs ثم انشر نسخة جديدة (New version).'), rate_limited: X('Too many questions — wait a minute.', 'أسئلة كثيرة — انتظر دقيقة.'), network: X('You are offline.', 'أنت غير متصل.') }[e.code] || e.message;
     w.innerHTML = md('⚠️ ' + m);
   }
   busy = false; btn.disabled = false; inp.focus(); document.querySelector('#aip .ai-b').scrollTop = 1e9;
@@ -44,7 +44,7 @@ function build() {
   p.querySelector('.ai-h button').onclick = () => p.classList.remove('open');
   p.querySelector('.ai-f button').onclick = () => ask(p.querySelector('input').value);
   p.querySelector('input').addEventListener('keydown', e => { if (e.key === 'Enter') ask(e.target.value); });
-  add('a', X('Hi! Ask me about candidates, clients, revenue, resignations or hires.', 'أهلاً! اسألني عن المرشحين، العملاء، الإيرادات، الاستقالات أو التعيينات.'));
+  add('a', X('Hi! 👋 Ask me anything — data analysis, summaries, or ideas.', 'أهلاً بيك! 👋 اسألني أي حاجة: تحليل بيانات، ملخصات، أو أفكار.'));
   const s = document.createElement('div'); s.className = 'ai-s';
   [X('How many records per tab?', 'كم عدد السجلات في كل تبويب؟'), X('Summarize the latest activity', 'لخّص آخر النشاطات'), X('Top client by requests?', 'من العميل الأكثر طلباً؟')].forEach(q => { const b = document.createElement('button'); b.textContent = q; b.onclick = () => ask(q); s.appendChild(b); });
   p.querySelector('.ai-b').appendChild(s);
@@ -54,4 +54,19 @@ setInterval(() => {
   if (!live()) { fab?.remove(); document.getElementById('aip')?.remove(); hist.length = 0; return; }
   if (!fab) { const b = document.createElement('button'); b.id = 'aifab'; b.type = 'button'; b.textContent = '✨'; b.title = X('Smart assistant', 'المساعد الذكي'); b.onclick = () => { if (!document.getElementById('aip')) build(); document.getElementById('aip').classList.toggle('open'); }; document.body.appendChild(b); }
 }, 700);
+})();
+
+/* IndexedDB self-heal: if the connection was closed (site data cleared, another tab upgraded/deleted the DB), reopen once and retry. */
+(function () {
+  if (typeof DB === 'undefined') return;
+  ['get', 'put', 'del', 'all', 'clear'].forEach(k => {
+    const orig = DB[k];
+    DB[k] = async (...a) => {
+      try { return await orig(...a); }
+      catch (e) {
+        if (!e || !/closing|closed|InvalidState/i.test(String(e.name) + String(e.message))) throw e;
+        await DB.open(); return orig(...a);
+      }
+    };
+  });
 })();
