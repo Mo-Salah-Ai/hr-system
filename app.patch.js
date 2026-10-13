@@ -9,7 +9,7 @@
    5) Deterministic color avatars + TopBar profile menu
    ============================================================================= */
 /* Backend endpoint (overrides CONFIG.API_URL from app.js) */
-CONFIG.API_URL = 'https://script.google.com/macros/s/AKfycbyShXLeeVnCCEk9hBzLyDD9o6JioW9xlOTin_nLexf-uZNhWdaWIvoT9s7j_c9j0HOAhA/exec';
+CONFIG.API_URL = 'https://script.google.com/macros/s/AKfycbx0SdaB_bCB2RBRfupXS_DY_G5Fv4A1M-r18Q7_ly4xVYQTKYaw3maPvD5Cmt2QA7xa3A/exec';
 (function () {
 const X = (en, ar) => S.lang === 'ar' ? ar : en;
 const E = esc;
